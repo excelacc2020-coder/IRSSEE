@@ -1,0 +1,7 @@
+{
+  "name": "Copy of IRS SEE Exam Prep Workflow",
+  "description": "An AI-powered, interactive study planner to help busy accounting professionals prepare for the US IRS Special Enrollment Examination (SEE). The app provides a structured workflow with real-world scenarios, AI-driven evaluation, and adaptive progression to ensure mastery of each topic.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
