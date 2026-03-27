@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(where node:*)",
+      "Bash(where npm:*)",
+      "Bash(npm --version)",
+      "Read(//c/Users/mhasn/AppData/Roaming/**)",
+      "Bash(/c/Users/mhasn/AppData/Roaming/nvm/v*/node.exe)",
+      "Bash(--version)",
+      "Bash(echo $PATH)",
+      "Bash(find /c/Users/mhasn/AppData/Local/AnthropicClaude/app-1.1.9134/resources -type f -name *.exe)",
+      "Bash(cmd.exe /c \"node --version\")",
+      "Bash(cmd.exe /c \"where node\")",
+      "Bash(cmd.exe /c \"where node & node --version & npm --version\")",
+      "Bash(powershell.exe -Command \"Get-Command node -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source; node --version; npm --version\")",
+      "Bash(\"/c/Program Files/nodejs/npm.cmd\" install)",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(npx tsc:*)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(powershell.exe -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force; Write-Host ''killed''\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 68740)",
+      "Bash(findstr \"5173\")",
+      "Bash(taskkill /F /PID 68740 /PID 14656)",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\(''''utf-8'''', errors=''''replace''''\\)\\)\")",
+      "Bash(node -e \"require\\(''child_process''\\).execSync\\(''npx vercel --version'', {stdio:''inherit''}\\)\")"
+    ]
+  }
+}
