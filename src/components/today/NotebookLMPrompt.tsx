@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import type { LessonTopic, Session } from '../../types';
 
+// Tax year = most recently completed year (current year minus 1)
+const TAX_YEAR = '2025';
+
 interface NotebookLMPromptProps {
   topic: LessonTopic;
   session: Session | null;
@@ -9,6 +12,7 @@ interface NotebookLMPromptProps {
 
 function buildPrompt(topic: LessonTopic, notes: string): string {
   const pubs = topic.irsPublications.join(', ');
+  const taxYearNote = `TAX YEAR: ${TAX_YEAR} — All dollar amounts, thresholds, phase-outs, and limits must reflect ${TAX_YEAR} figures.\n`;
   const notesContext = notes?.trim()
     ? `\n\nADDITIONAL CONTEXT FROM MY STUDY NOTES:\n${notes.trim()}`
     : '';
@@ -17,7 +21,7 @@ function buildPrompt(topic: LessonTopic, notes: string): string {
 
 TOPIC: ${topic.topic}
 IRS PART: Part ${topic.part} (${topic.part === 1 ? 'Individuals' : topic.part === 2 ? 'Businesses' : 'Representation'})
-KEY IRS REFERENCES: ${pubs}
+${taxYearNote}KEY IRS REFERENCES: ${pubs}
 ${notesContext}
 
 Using the source documents I have uploaded, please create comprehensive, client-service-oriented study content covering the following areas. The goal is to prepare a new tax preparer and tax strategist to confidently handle this topic when working with real clients — not just pass an exam, but genuinely serve clients well.
@@ -90,7 +94,7 @@ FORMAT INSTRUCTIONS
 ──────────────────────────────────────────
 - Use numbered lists and bullet points throughout
 - Bold key terms, thresholds, and form numbers
-- Include real dollar examples (use 2024 tax year unless otherwise specified)
+- Include real dollar examples using ${TAX_YEAR} tax year figures throughout
 - Keep explanations practical — "what do I do with this client" not textbook theory
 - Where rules vary by filing status or entity type, show the variation in a table or comparison
 

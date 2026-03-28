@@ -1,11 +1,9 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-
-export default async function handler(req: IncomingMessage & { url?: string; body?: unknown }, res: ServerResponse) {
+export default async function handler(req, res) {
   const path = (req.url ?? '').replace(/^\/api\/claude/, '');
 
-  const chunks: Buffer[] = [];
-  await new Promise<void>(resolve => {
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+  const chunks = [];
+  await new Promise((resolve) => {
+    req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', resolve);
   });
   const body = chunks.length ? Buffer.concat(chunks).toString() : undefined;
@@ -13,8 +11,8 @@ export default async function handler(req: IncomingMessage & { url?: string; bod
   const response = await fetch(`https://api.anthropic.com${path}`, {
     method: req.method,
     headers: {
-      'x-api-key': (req.headers['x-api-key'] as string) ?? '',
-      'anthropic-version': (req.headers['anthropic-version'] as string) ?? '2023-06-01',
+      'x-api-key': req.headers['x-api-key'] ?? '',
+      'anthropic-version': req.headers['anthropic-version'] ?? '2023-06-01',
       'content-type': 'application/json',
     },
     body,

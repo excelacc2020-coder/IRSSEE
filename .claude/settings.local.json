@@ -29,7 +29,21 @@
       "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
       "Bash(python -c \":*)",
       "Bash(python -c \"import sys; data=sys.stdin.buffer.read\\(\\); print\\(data.decode\\(''''utf-8'''', errors=''''replace''''\\)\\)\")",
-      "Bash(node -e \"require\\(''child_process''\\).execSync\\(''npx vercel --version'', {stdio:''inherit''}\\)\")"
+      "Bash(node -e \"require\\(''child_process''\\).execSync\\(''npx vercel --version'', {stdio:''inherit''}\\)\")",
+      "Bash(grep -r \"anthropic\\\\|API Key must be set\" F:/EA/ea-command-center/node_modules/@supabase --include=*.js -l)",
+      "Bash(grep -r 'API Key must be set' F:/EA/ea-command-center/node_modules --include=*.js -l)",
+      "Bash(grep -r \"API Key must be set\\\\|api key must be set\" F:/EA/ea-command-center/node_modules -i --include=*.ts --include=*.mjs --include=*.cjs -l)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"API Key must be set\\\\|api key\\\\|apiKey\" F:/EA/ea-command-center/node_modules/@supabase/supabase-js/dist --include=*.js --include=*.mjs -l)",
+      "Bash(grep -r 'must be set' F:/EA/ea-command-center/node_modules/@supabase --include=*.js --include=*.mjs -h)",
+      "Bash(grep -o '.\\\\{0,80\\\\}must be set.\\\\{0,80\\\\}' F:/EA/ea-command-center/node_modules/@supabase/supabase-js/dist/umd/supabase.js)",
+      "Bash(grep -o '.\\\\{0,80\\\\}API Key.\\\\{0,80\\\\}' F:/EA/ea-command-center/node_modules/@supabase/supabase-js/dist/umd/supabase.js)",
+      "Bash(npm run:*)",
+      "Bash(grep -o '.\\\\{0,60\\\\}API Key.\\\\{0,60\\\\}' F:/EA/ea-command-center/dist/assets/index-DtCJiYZR.js)",
+      "Bash(vercel build:*)",
+      "Bash(export PATH=\"/c/Users/mhasn/AppData/Roaming/npm:$PATH:/c/Program Files/nodejs\")",
+      "Bash(vercel pull:*)",
+      "Bash(vercel deploy:*)"
     ]
   }
 }

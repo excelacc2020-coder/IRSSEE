@@ -1,11 +1,9 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-
-export default async function handler(req: IncomingMessage & { url?: string }, res: ServerResponse) {
+export default async function handler(req, res) {
   const path = (req.url ?? '').replace(/^\/api\/groq/, '');
 
-  const chunks: Buffer[] = [];
-  await new Promise<void>(resolve => {
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+  const chunks = [];
+  await new Promise((resolve) => {
+    req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', resolve);
   });
   const body = chunks.length ? Buffer.concat(chunks).toString() : undefined;
@@ -13,7 +11,7 @@ export default async function handler(req: IncomingMessage & { url?: string }, r
   const response = await fetch(`https://api.groq.com/openai${path}`, {
     method: req.method,
     headers: {
-      'Authorization': (req.headers['authorization'] as string) ?? '',
+      'Authorization': req.headers['authorization'] ?? '',
       'content-type': 'application/json',
     },
     body,

@@ -1,11 +1,9 @@
-import type { IncomingMessage, ServerResponse } from 'http';
-
-export default async function handler(req: IncomingMessage & { url?: string }, res: ServerResponse) {
+export default async function handler(req, res) {
   const path = (req.url ?? '').replace(/^\/api\/gemini/, '');
 
-  const chunks: Buffer[] = [];
-  await new Promise<void>(resolve => {
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+  const chunks = [];
+  await new Promise((resolve) => {
+    req.on('data', (chunk) => chunks.push(chunk));
     req.on('end', resolve);
   });
   const body = chunks.length ? Buffer.concat(chunks).toString() : undefined;
