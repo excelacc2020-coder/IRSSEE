@@ -151,7 +151,10 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
             topic={topic}
             session={session}
             settings={settings}
-            onComplete={() => handleSessionUpdate({ morning_brief_viewed: true })}
+            onComplete={content => handleSessionUpdate({
+              morning_brief_viewed: true,
+              morning_brief_content: JSON.stringify(content)
+            })}
           />
         )}
         {activePhase === 1 && (

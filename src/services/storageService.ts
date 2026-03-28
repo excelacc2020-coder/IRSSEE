@@ -70,8 +70,10 @@ export async function upsertUserSettings(
       .upsert({ ...merged, user_id: userId }, { onConflict: 'user_id' })
       .select()
       .single()
-  ).then(({ data }) => { if (data) lsSet(`settings_${userId}`, data); })
-   .catch(() => {/* offline or no auth — localStorage already updated */});
+  ).then(({ data, error }) => { 
+    if (error) console.error('upsertUserSettings DB error:', error);
+    if (data) lsSet(`settings_${userId}`, data); 
+  }).catch((err) => { console.error('upsertUserSettings network error:', err); });
 }
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
@@ -142,8 +144,10 @@ export async function upsertSession(
       .upsert(payload, { onConflict: 'user_id,day' })
       .select()
       .single()
-  ).then(({ data }) => { if (data) lsSet(cacheKey, data as Session); })
-   .catch(() => {/* offline or no auth */});
+  ).then(({ data, error }) => { 
+    if (error) console.error('upsertSession DB error:', error, payload);
+    if (data) lsSet(cacheKey, data as Session); 
+  }).catch((err) => { console.error('upsertSession network error:', err); });
 
   return merged;
 }
@@ -195,7 +199,9 @@ export async function saveError(
   // Best-effort Supabase sync
   void Promise.resolve(
     supabase.from('errors').insert({ ...record, user_id: userId })
-  ).catch(() => {/* offline or no auth */});
+  ).then(({ error }) => {
+    if (error) console.error('saveError DB error:', error);
+  }).catch((err) => { console.error('saveError network error:', err); });
 }
 
 export async function getAllErrors(userId: string): Promise<ErrorRecord[]> {
@@ -252,10 +258,17 @@ export async function saveAnkiCards(
   lsSet(cacheKey, [...newCards, ...existing]);
 
   // Best-effort Supabase sync
-  const payload = newCards.map(c => ({ ...c }));
+  const payload = newCards.map(c => {
+    const copy = { ...c };
+    delete (copy as any).id; // Let Supabase DB generate valid UUID per schema
+    return copy;
+  });
+
   void Promise.resolve(
     supabase.from('anki_cards').insert(payload)
-  ).catch(() => {/* offline or no auth */});
+  ).then(({ error }) => {
+    if (error) console.error('saveAnkiCards DB error:', error, payload);
+  }).catch((err) => { console.error('saveAnkiCards network error:', err); });
 }
 
 export async function getAllCards(userId: string): Promise<AnkiCard[]> {

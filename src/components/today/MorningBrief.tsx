@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateMorningBrief } from '../../services/aiService';
 import { getRecentErrors } from '../../services/storageService';
 import type { User, Session, UserSettings, MorningBriefContent, LessonTopic } from '../../types';
@@ -8,7 +8,7 @@ interface MorningBriefProps {
   topic: LessonTopic;
   session: Session | null;
   settings: UserSettings | null;
-  onComplete: () => void;
+  onComplete: (content: MorningBriefContent) => void;
 }
 
 const SECTION_LABELS: Record<keyof MorningBriefContent, string> = {
@@ -45,9 +45,34 @@ function saveCachedBrief(userId: string, day: number, content: MorningBriefConte
 }
 
 export default function MorningBrief({ user, topic, session, settings, onComplete }: MorningBriefProps) {
-  const [brief, setBrief] = useState<MorningBriefContent | null>(
-    () => loadCachedBrief(user.id, topic.day)
-  );
+  const [brief, setBrief] = useState<MorningBriefContent | null>(() => {
+    const cached = loadCachedBrief(user.id, topic.day);
+    if (cached) return cached;
+    if (session?.morning_brief_content) {
+      try {
+        const parsed = JSON.parse(session.morning_brief_content) as MorningBriefContent;
+        saveCachedBrief(user.id, topic.day, parsed);
+        return parsed;
+      } catch {
+        // syntax error
+      }
+    }
+    return null;
+  });
+
+  // Keep it in sync if session loads slower than the component mounts
+  useEffect(() => {
+    if (!brief && session?.morning_brief_content) {
+      try {
+        const parsed = JSON.parse(session.morning_brief_content) as MorningBriefContent;
+        saveCachedBrief(user.id, topic.day, parsed);
+        setBrief(parsed);
+      } catch {
+        // ignore
+      }
+    }
+  }, [brief, session?.morning_brief_content, user.id, topic.day]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -70,7 +95,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
       );
       saveCachedBrief(user.id, topic.day, result);
       setBrief(result);
-      onComplete();
+      onComplete(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate morning brief');
     } finally {
@@ -123,7 +148,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
 
           <div className="flex justify-end pt-2">
             <button
-              onClick={onComplete}
+              onClick={() => onComplete(brief)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
             >
               Continue to Videos
@@ -169,9 +194,9 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           >
             Generate Morning Brief
           </button>
-          {alreadyViewed && (
+          {alreadyViewed && brief && (
             <button
-              onClick={onComplete}
+              onClick={() => onComplete(brief)}
               className="ml-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium px-6 py-3 rounded-lg transition-colors"
             >
               Continue

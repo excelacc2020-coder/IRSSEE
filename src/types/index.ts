@@ -21,6 +21,7 @@ export interface Session {
   topic: string;
   part: 1 | 2 | 3;
   morning_brief_viewed: boolean;
+  morning_brief_content?: string;
   study_notes: string;
   mind_map_generated: boolean;
   mind_map_content: string;
