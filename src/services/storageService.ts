@@ -63,11 +63,21 @@ export async function upsertUserSettings(
   // Always write to localStorage immediately (works offline / dev mode)
   lsSet(`settings_${userId}`, merged);
 
+  const cleanSettings = {
+    id: merged.id,
+    user_id: merged.user_id,
+    ai_provider: merged.ai_provider,
+    ai_api_key: merged.ai_api_key,
+    ai_model: merged.ai_model,
+    current_day: merged.current_day,
+    updated_at: merged.updated_at,
+  };
+
   // Best-effort Supabase sync
   void Promise.resolve(
     supabase
       .from('user_settings')
-      .upsert({ ...merged, user_id: userId }, { onConflict: 'user_id' })
+      .upsert(cleanSettings, { onConflict: 'user_id' })
       .select()
       .single()
   ).then(({ data, error }) => { 
@@ -135,10 +145,30 @@ export async function upsertSession(
   lsSet(cacheKey, merged);
 
   // Best-effort Supabase sync
-  const payload = { ...merged };
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!payload.id || !uuidRegex.test(payload.id)) {
-    delete (payload as Partial<Session>).id;
+  
+  const payload: Partial<Session> = {
+    user_id: merged.user_id,
+    day: merged.day,
+    topic: merged.topic,
+    part: merged.part,
+    morning_brief_viewed: merged.morning_brief_viewed,
+    morning_brief_content: merged.morning_brief_content,
+    study_notes: merged.study_notes,
+    mind_map_generated: merged.mind_map_generated,
+    mind_map_content: merged.mind_map_content,
+    quiz_scenario: merged.quiz_scenario,
+    quiz_questions: merged.quiz_questions,
+    quiz_answers: merged.quiz_answers,
+    quiz_score: merged.quiz_score,
+    quiz_passed: merged.quiz_passed,
+    locked: merged.locked,
+    created_at: merged.created_at,
+    updated_at: merged.updated_at,
+  };
+  
+  if (merged.id && uuidRegex.test(merged.id)) {
+    payload.id = merged.id;
   }
 
   void Promise.resolve(
