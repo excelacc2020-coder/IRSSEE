@@ -136,7 +136,10 @@ export async function upsertSession(
 
   // Best-effort Supabase sync
   const payload = { ...merged };
-  if (!existing?.id) delete (payload as Partial<Session>).id;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!payload.id || !uuidRegex.test(payload.id)) {
+    delete (payload as Partial<Session>).id;
+  }
 
   void Promise.resolve(
     supabase
