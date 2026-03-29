@@ -11,71 +11,49 @@ interface MorningBriefProps {
   onComplete: (content: MorningBriefContent) => void;
 }
 
-/** Returns null (and purges localStorage) if the data is in the old flat-string format */
+/**
+ * Validates that a parsed object matches the NEW brief format.
+ * Returns null for old-format (flat string) briefs so they are discarded
+ * rather than crashing the renderer.
+ */
 function validateBriefFormat(data: unknown): MorningBriefContent | null {
   if (!data || typeof data !== 'object') return null;
   const d = data as Record<string, unknown>;
-  // Old format had flat string fields — discard it
+  // Old format had flat string fields — discard silently
   if ('coreConcept' in d || 'keyRulesThresholds' in d) return null;
-  // New format must have subtopics array
+  // New format must have both arrays
   if (!Array.isArray(d.subtopics) || !Array.isArray(d.rulesTable)) return null;
   return data as MorningBriefContent;
 }
 
-function loadCachedBrief(userId: string, day: number): MorningBriefContent | null {
+/**
+ * Parse the brief stored in session.morning_brief_content.
+ * Returns null if absent, unparseable, or in the old format.
+ */
+function parseBriefFromSession(session: Session | null): MorningBriefContent | null {
+  if (!session?.morning_brief_content) return null;
   try {
-    const raw = localStorage.getItem(`brief_${userId}_${day}`);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    const valid = validateBriefFormat(parsed);
-    // Purge stale old-format data so it doesn't keep crashing
-    if (!valid) localStorage.removeItem(`brief_${userId}_${day}`);
-    return valid;
+    const parsed = JSON.parse(session.morning_brief_content);
+    return validateBriefFormat(parsed);
   } catch {
     return null;
   }
 }
 
-function saveCachedBrief(userId: string, day: number, content: MorningBriefContent): void {
-  try {
-    localStorage.setItem(`brief_${userId}_${day}`, JSON.stringify(content));
-  } catch { /* quota exceeded */ }
-}
-
 export default function MorningBrief({ user, topic, session, settings, onComplete }: MorningBriefProps) {
-  const [brief, setBrief] = useState<MorningBriefContent | null>(() => {
-    const cached = loadCachedBrief(user.id, topic.day);
-    if (cached) return cached;
-    if (session?.morning_brief_content) {
-      try {
-        const parsed = JSON.parse(session.morning_brief_content);
-        const valid = validateBriefFormat(parsed);
-        if (valid) {
-          saveCachedBrief(user.id, topic.day, valid);
-          return valid;
-        }
-      } catch {
-        // syntax error
-      }
-    }
-    return null;
-  });
+  // Single source of truth: session.morning_brief_content (backed by Supabase).
+  // We derive the brief directly from the session prop — no separate localStorage key.
+  const [brief, setBrief] = useState<MorningBriefContent | null>(() =>
+    parseBriefFromSession(session)
+  );
 
-  // Keep it in sync if session loads slower than the component mounts
+  // Re-derive when the session prop updates (async Supabase load arrives after mount)
   useEffect(() => {
-    if (!brief && session?.morning_brief_content) {
-      try {
-        const parsed = JSON.parse(session.morning_brief_content);
-        const valid = validateBriefFormat(parsed);
-        if (valid) {
-          saveCachedBrief(user.id, topic.day, valid);
-          setBrief(valid);
-        }
-      } catch {
-        // ignore
-      }
+    if (!brief) {
+      const parsed = parseBriefFromSession(session);
+      if (parsed) setBrief(parsed);
     }
-  }, [brief, session?.morning_brief_content, user.id, topic.day]);
+  }, [brief, session]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,8 +75,9 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
         topic.part,
         recentErrors.map(e => ({ question: e.question, category: e.category }))
       );
-      saveCachedBrief(user.id, topic.day, result);
+      // Save locally for instant display
       setBrief(result);
+      // Persist to Supabase via onComplete → upsertSession in TodayTab
       onComplete(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate morning brief');
@@ -108,8 +87,11 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
   }
 
   const alreadyViewed = session?.morning_brief_viewed ?? false;
+  // True only if viewed flag is set but content is absent/invalid (format mismatch)
+  const briefMissing = alreadyViewed && !brief;
 
-  // Show the brief if cached — no need to regenerate
+  // ─── Render: brief loaded ────────────────────────────────────────────────────
+
   if (brief && !loading) {
     return (
       <div>
@@ -117,7 +99,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           <div>
             <h3 className="text-lg font-semibold text-white">Morning Brief</h3>
             <p className="text-sm text-gray-400 mt-1">
-              AI-generated study scaffold. Cached — no tokens used on return.
+              AI-generated study scaffold. Saved to cloud — available on all devices.
             </p>
           </div>
           <button
@@ -155,7 +137,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           {/* Key Rules & Thresholds — table */}
           <div className="border border-purple-700 bg-purple-950/30 rounded-xl p-5">
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Key Rules & Thresholds
+              Key Rules &amp; Thresholds
             </h4>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -226,6 +208,8 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
     );
   }
 
+  // ─── Render: no brief yet ────────────────────────────────────────────────────
+
   return (
     <div>
       <div className="mb-4">
@@ -245,9 +229,9 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
 
       {!loading && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
-          {alreadyViewed && (
+          {briefMissing && (
             <p className="text-sm text-yellow-400 mb-4">
-              Brief was generated but is no longer cached. Generate a fresh one or continue.
+              Previous brief used an older format and was updated. Please generate a new one — this only happens once.
             </p>
           )}
           {error && (
@@ -261,14 +245,6 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           >
             Generate Morning Brief
           </button>
-          {alreadyViewed && brief && (
-            <button
-              onClick={() => onComplete(brief)}
-              className="ml-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium px-6 py-3 rounded-lg transition-colors"
-            >
-              Continue
-            </button>
-          )}
         </div>
       )}
     </div>
