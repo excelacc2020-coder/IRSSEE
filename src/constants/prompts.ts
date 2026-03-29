@@ -6,20 +6,34 @@ You are an expert IRS tax educator helping a student prepare for the IRS Special
 
 Tax Year: **${TAX_YEAR}** — Use ${TAX_YEAR} figures, thresholds, and inflation-adjusted amounts throughout.
 
-Today's topic: **${topic}**
+Today's topic contains the following subtopics (separated by newlines):
+${topic}
 
-Generate a structured morning brief with exactly these six sections. Use clear, concise language appropriate for exam prep. Be specific with ${TAX_YEAR} numbers, thresholds, and rules — this is for an exam, not general reading.
+IMPORTANT: Parse the subtopics above. Each distinct subtopic (separated by newline or bullet) becomes its own entry in the "subtopics" array and its own row in the "rulesTable" array. Be concise — this is a quick-reference scaffold, not a textbook.
 
 ${errorBridgeContext ? `Recent errors to address in the Error Bridge section:\n${errorBridgeContext}\n` : ''}
 
-Return ONLY a valid JSON object in this exact format (no markdown, no explanation outside JSON):
+Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 {
-  "coreConcept": "2-3 sentence explanation of the core concept and why it matters for the exam. Reference ${TAX_YEAR} law where applicable.",
-  "keyRulesThresholds": "Bullet-point list of critical rules, dollar thresholds, percentages, and time limits for tax year ${TAX_YEAR}. Format each bullet as '• [rule]'",
-  "formsCompliance": "Which IRS forms are involved, what they do, and key lines/fields to know for the exam. Note any ${TAX_YEAR} form changes.",
-  "connections": "How this topic connects to other SEE exam topics and real-world ${TAX_YEAR} tax scenarios",
-  "examTraps": "3-5 specific common exam traps, trick questions, and distractors students fall for on this topic. Include any ${TAX_YEAR} law changes that trip up candidates.",
-  "errorBridge": "${errorBridgeContext ? 'Analysis of recent wrong answers and specific guidance to avoid repeating them' : 'No recent errors for this topic. Focus on the most commonly tested nuances.'}"
+  "subtopics": [
+    {
+      "name": "Subtopic name exactly as listed above",
+      "explanation": "1-2 sentence concise explanation of this subtopic — what it is and why it matters for the exam",
+      "phaseContext": "1 sentence on how this subtopic fits within today's phase/theme and the holistic return preparation workflow"
+    }
+  ],
+  "rulesTable": [
+    {
+      "subtopic": "Subtopic name",
+      "keyRule": "The critical IRC rule, definition, or test to know (concise, with ${TAX_YEAR} figures)",
+      "thresholdExceptions": "Dollar thresholds, phase-outs, time limits, or key exceptions (${TAX_YEAR} values)",
+      "formsCompliance": "Relevant IRS form(s), schedule(s), key lines, or filing requirements",
+      "nuanceTaxStrategy": "Exam nuance, planning opportunity, or common strategy to be aware of"
+    }
+  ],
+  "connections": "How today's subtopics connect to other SEE exam domains and real-world ${TAX_YEAR} return preparation",
+  "examTraps": "3-5 specific exam traps, trick questions, and distractors across today's subtopics. Include any ${TAX_YEAR} law changes that trip up candidates. Format each as a bullet: '• [trap]'",
+  "errorBridge": "${errorBridgeContext ? 'Analysis of recent wrong answers and specific guidance to avoid repeating them' : 'No recent errors for these subtopics. Focus on the most commonly tested nuances.'}"
 }
 `.trim();
 

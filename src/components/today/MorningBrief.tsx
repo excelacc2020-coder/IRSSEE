@@ -11,24 +11,6 @@ interface MorningBriefProps {
   onComplete: (content: MorningBriefContent) => void;
 }
 
-const SECTION_LABELS: Record<keyof MorningBriefContent, string> = {
-  coreConcept: 'Core Concept',
-  keyRulesThresholds: 'Key Rules & Thresholds',
-  formsCompliance: 'Forms & Compliance',
-  connections: 'Connections',
-  examTraps: 'Exam Traps',
-  errorBridge: 'Error Bridge',
-};
-
-const SECTION_COLORS: Record<keyof MorningBriefContent, string> = {
-  coreConcept: 'border-blue-700 bg-blue-950/30',
-  keyRulesThresholds: 'border-purple-700 bg-purple-950/30',
-  formsCompliance: 'border-teal-700 bg-teal-950/30',
-  connections: 'border-indigo-700 bg-indigo-950/30',
-  examTraps: 'border-red-700 bg-red-950/30',
-  errorBridge: 'border-yellow-700 bg-yellow-950/30',
-};
-
 function loadCachedBrief(userId: string, day: number): MorningBriefContent | null {
   try {
     const raw = localStorage.getItem(`brief_${userId}_${day}`);
@@ -132,19 +114,82 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
         )}
 
         <div className="space-y-4">
-          {(Object.keys(SECTION_LABELS) as (keyof MorningBriefContent)[]).map(key => (
-            <div
-              key={key}
-              className={`border rounded-xl p-5 ${SECTION_COLORS[key]}`}
-            >
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                {SECTION_LABELS[key]}
-              </h4>
-              <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
-                {brief[key]}
-              </div>
+          {/* Core Concepts — subtopic bullet points */}
+          <div className="border border-blue-700 bg-blue-950/30 rounded-xl p-5">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Core Concepts
+            </h4>
+            <div className="space-y-3">
+              {brief.subtopics.map((st, i) => (
+                <div key={i} className="border-l-2 border-blue-600 pl-3">
+                  <p className="text-sm font-medium text-blue-300">{st.name}</p>
+                  <p className="text-sm text-gray-200 mt-0.5">{st.explanation}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 italic">{st.phaseContext}</p>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Key Rules & Thresholds — table */}
+          <div className="border border-purple-700 bg-purple-950/30 rounded-xl p-5">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Key Rules & Thresholds
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-purple-800 text-left">
+                    <th className="py-2 pr-3 text-xs font-semibold text-purple-300 whitespace-nowrap">Subtopic</th>
+                    <th className="py-2 pr-3 text-xs font-semibold text-purple-300 whitespace-nowrap">Key Rule</th>
+                    <th className="py-2 pr-3 text-xs font-semibold text-purple-300 whitespace-nowrap">Threshold / Exceptions</th>
+                    <th className="py-2 pr-3 text-xs font-semibold text-purple-300 whitespace-nowrap">Forms / Compliance</th>
+                    <th className="py-2 text-xs font-semibold text-purple-300 whitespace-nowrap">Nuance / Tax Strategy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {brief.rulesTable.map((row, i) => (
+                    <tr key={i} className="border-b border-purple-900/50 align-top">
+                      <td className="py-2 pr-3 text-purple-200 font-medium whitespace-nowrap">{row.subtopic}</td>
+                      <td className="py-2 pr-3 text-gray-200">{row.keyRule}</td>
+                      <td className="py-2 pr-3 text-gray-300">{row.thresholdExceptions}</td>
+                      <td className="py-2 pr-3 text-gray-300">{row.formsCompliance}</td>
+                      <td className="py-2 text-gray-400">{row.nuanceTaxStrategy}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Connections */}
+          <div className="border border-indigo-700 bg-indigo-950/30 rounded-xl p-5">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Connections
+            </h4>
+            <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+              {brief.connections}
+            </div>
+          </div>
+
+          {/* Exam Traps */}
+          <div className="border border-red-700 bg-red-950/30 rounded-xl p-5">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Exam Traps
+            </h4>
+            <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+              {brief.examTraps}
+            </div>
+          </div>
+
+          {/* Error Bridge */}
+          <div className="border border-yellow-700 bg-yellow-950/30 rounded-xl p-5">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+              Error Bridge
+            </h4>
+            <div className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">
+              {brief.errorBridge}
+            </div>
+          </div>
 
           <div className="flex justify-end pt-2">
             <button

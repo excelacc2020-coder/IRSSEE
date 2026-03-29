@@ -92,10 +92,23 @@ export interface UserSettings {
   updated_at: string;
 }
 
-export interface MorningBriefContent {
-  coreConcept: string;
-  keyRulesThresholds: string;
+export interface SubtopicConcept {
+  name: string;
+  explanation: string;
+  phaseContext: string;
+}
+
+export interface RulesTableRow {
+  subtopic: string;
+  keyRule: string;
+  thresholdExceptions: string;
   formsCompliance: string;
+  nuanceTaxStrategy: string;
+}
+
+export interface MorningBriefContent {
+  subtopics: SubtopicConcept[];
+  rulesTable: RulesTableRow[];
   connections: string;
   examTraps: string;
   errorBridge: string;
