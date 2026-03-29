@@ -11,10 +11,26 @@ interface MorningBriefProps {
   onComplete: (content: MorningBriefContent) => void;
 }
 
+/** Returns null (and purges localStorage) if the data is in the old flat-string format */
+function validateBriefFormat(data: unknown): MorningBriefContent | null {
+  if (!data || typeof data !== 'object') return null;
+  const d = data as Record<string, unknown>;
+  // Old format had flat string fields — discard it
+  if ('coreConcept' in d || 'keyRulesThresholds' in d) return null;
+  // New format must have subtopics array
+  if (!Array.isArray(d.subtopics) || !Array.isArray(d.rulesTable)) return null;
+  return data as MorningBriefContent;
+}
+
 function loadCachedBrief(userId: string, day: number): MorningBriefContent | null {
   try {
     const raw = localStorage.getItem(`brief_${userId}_${day}`);
-    return raw ? (JSON.parse(raw) as MorningBriefContent) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const valid = validateBriefFormat(parsed);
+    // Purge stale old-format data so it doesn't keep crashing
+    if (!valid) localStorage.removeItem(`brief_${userId}_${day}`);
+    return valid;
   } catch {
     return null;
   }
@@ -32,9 +48,12 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
     if (cached) return cached;
     if (session?.morning_brief_content) {
       try {
-        const parsed = JSON.parse(session.morning_brief_content) as MorningBriefContent;
-        saveCachedBrief(user.id, topic.day, parsed);
-        return parsed;
+        const parsed = JSON.parse(session.morning_brief_content);
+        const valid = validateBriefFormat(parsed);
+        if (valid) {
+          saveCachedBrief(user.id, topic.day, valid);
+          return valid;
+        }
       } catch {
         // syntax error
       }
@@ -46,9 +65,12 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
   useEffect(() => {
     if (!brief && session?.morning_brief_content) {
       try {
-        const parsed = JSON.parse(session.morning_brief_content) as MorningBriefContent;
-        saveCachedBrief(user.id, topic.day, parsed);
-        setBrief(parsed);
+        const parsed = JSON.parse(session.morning_brief_content);
+        const valid = validateBriefFormat(parsed);
+        if (valid) {
+          saveCachedBrief(user.id, topic.day, valid);
+          setBrief(valid);
+        }
       } catch {
         // ignore
       }
@@ -120,7 +142,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
               Core Concepts
             </h4>
             <div className="space-y-3">
-              {brief.subtopics.map((st, i) => (
+              {(brief.subtopics ?? []).map((st, i) => (
                 <div key={i} className="border-l-2 border-blue-600 pl-3">
                   <p className="text-sm font-medium text-blue-300">{st.name}</p>
                   <p className="text-sm text-gray-200 mt-0.5">{st.explanation}</p>
@@ -147,7 +169,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
                   </tr>
                 </thead>
                 <tbody>
-                  {brief.rulesTable.map((row, i) => (
+                  {(brief.rulesTable ?? []).map((row, i) => (
                     <tr key={i} className="border-b border-purple-900/50 align-top">
                       <td className="py-2 pr-3 text-purple-200 font-medium whitespace-nowrap">{row.subtopic}</td>
                       <td className="py-2 pr-3 text-gray-200">{row.keyRule}</td>
