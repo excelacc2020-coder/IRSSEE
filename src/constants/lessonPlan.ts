@@ -21,25 +21,17 @@ export const LESSON_PLAN: LessonTopic[] = [
     videoUrl: 'https://www.youtube.com/watch?v=cyPxZmkGqSs&t=5798',
     videoNotes: 'P1 V1 — Filing status [01:36:38]; QC test [01:49:26]; QR test [01:51:00]; tiebreakers [02:24:19]',
   },
-  {
-    day: 3, week: 1, part: 1,
-    topic: 'ACA Coverage & Premium Tax Credit',
-    irsPublications: ['Pub 974', 'Pub 17', 'Form 8962 Instructions'],
-    videoKeywords: ['ACA premium tax credit SEE exam', 'Form 8962 advance PTC MAGI household'],
-    videoUrl: 'https://www.youtube.com/watch?v=fIaY44fhBBA&t=2288',
-    videoNotes: 'P1 V5 — ACA / Premium Tax Credit [00:38:08]; advance PTC, household income, MAGI, repayment',
-  },
 
   // ── WEEK 1 (cont.): Level 2 — Income & Property (Segment A) ───────────────
   {
-    day: 4, week: 1, part: 1,
+    day: 3, week: 1, part: 1,
     topic: 'W-2 Wages, Tips & Fringe Benefits',
     irsPublications: ['Pub 525', 'Pub 15-B', 'Pub 17 Ch. 5'],
     videoKeywords: ['W-2 wages fringe benefits SEE exam', 'constructive receipt taxable compensation EA'],
     videoNotes: 'P1 V2 — no transcript available (PDF study only)',
   },
   {
-    day: 5, week: 1, part: 1,
+    day: 4, week: 1, part: 1,
     topic: 'Interest, Dividends & Kiddie Tax',
     irsPublications: ['Pub 550', 'Pub 929', 'Pub 17 Ch. 7-8'],
     videoKeywords: ['interest dividend income 1099-INT DIV', 'kiddie tax unearned income SEE'],
@@ -49,14 +41,14 @@ export const LESSON_PLAN: LessonTopic[] = [
 
   // ── WEEK 2: Level 2 (cont.) ────────────────────────────────────────────────
   {
-    day: 6, week: 2, part: 1,
+    day: 5, week: 2, part: 1,
     topic: 'Self-Employment Income & Schedule C',
     irsPublications: ['Pub 334', 'Pub 535', 'Pub 583'],
     videoKeywords: ['Schedule C self-employment 1099-NEC SEE exam', 'hobby vs business loss EA exam'],
     videoNotes: 'P1 V2 — no transcript available (PDF study only)',
   },
   {
-    day: 7, week: 2, part: 1,
+    day: 6, week: 2, part: 1,
     topic: 'Pass-Through Income — K-1 & QBI Overview',
     irsPublications: ['Pub 541', 'Pub 550', 'Pub 535'],
     videoKeywords: ['Schedule K-1 pass-through income SEE', 'QBI 199A deduction EA exam'],
@@ -64,21 +56,21 @@ export const LESSON_PLAN: LessonTopic[] = [
     videoNotes: 'P1 V4 — QBI/199A overview [02:06:14]',
   },
   {
-    day: 8, week: 2, part: 1,
+    day: 7, week: 2, part: 1,
     topic: 'Retirement Income — IRAs, 1099-R & Form 8606',
     irsPublications: ['Pub 590-A', 'Pub 590-B', 'Pub 575'],
     videoKeywords: ['1099-R retirement income SEE exam', 'traditional Roth IRA rollover conversion Form 8606'],
     videoNotes: 'P1 V6 — missing from playlist (PDF study only)',
   },
   {
-    day: 9, week: 2, part: 1,
+    day: 8, week: 2, part: 1,
     topic: 'Social Security, RRB Benefits & Gambling Income',
     irsPublications: ['Pub 915', 'Pub 505', 'Pub 525'],
     videoKeywords: ['Social Security provisional income taxable SEE exam', 'gambling income W-2G EA exam'],
     videoNotes: 'P1 V6 — missing from playlist (PDF study only)',
   },
   {
-    day: 10, week: 2, part: 1,
+    day: 9, week: 2, part: 1,
     topic: 'Other Income — COD, Scholarships & Alimony',
     irsPublications: ['Pub 525', 'Pub 4681', 'Pub 970'],
     videoKeywords: ['cancellation of debt 1099-C SEE exam', 'alimony scholarship foreign income EA'],
@@ -86,17 +78,19 @@ export const LESSON_PLAN: LessonTopic[] = [
     videoNotes: 'P1 V3 — COD/1099-C [01:49:06]',
   },
 
-  // ── WEEK 3: Level 4 — Adjustments, Deductions & Credits ───────────────────
+  // ── WEEK 2 (cont.): Level 4 — Adjustments, Deductions & Credits ──────────
   {
-    day: 11, week: 3, part: 1,
+    day: 10, week: 2, part: 1,
     topic: 'Above-the-Line Adjustments — HSA, IRA & SE Tax',
     irsPublications: ['Pub 969', 'Pub 590-A', 'Pub 560'],
     videoKeywords: ['above the line adjustments SEE exam', 'HSA IRA SEP SIMPLE student loan interest EA'],
     videoUrl: 'https://www.youtube.com/watch?v=37OVYs7zvSA&t=157',
     videoNotes: 'P1 V4 — Above-the-line adjustments [00:02:37]; HSA [00:05:33]; IRA/SEP/SIMPLE [00:10:42]; SE tax [00:15:56]; student loan interest [00:11:21]',
   },
+
+  // ── WEEK 3: Level 4 — Deductions & Credits ────────────────────────────────
   {
-    day: 12, week: 3, part: 1,
+    day: 11, week: 3, part: 1,
     topic: 'Itemized Deductions — Medical, SALT, Interest & Charitable',
     irsPublications: ['Pub 502', 'Pub 526', 'Pub 936'],
     videoKeywords: ['itemized deductions standard deduction SEE exam', 'SALT medical charitable mortgage interest EA'],
@@ -104,7 +98,7 @@ export const LESSON_PLAN: LessonTopic[] = [
     videoNotes: 'P1 V4 — Standard deduction [00:21:02]; itemized overview [00:33:24]; medical [00:34:19]; SALT [00:43:25]; mortgage interest [00:49:22]; charitable [00:57:58]',
   },
   {
-    day: 13, week: 3, part: 1,
+    day: 12, week: 3, part: 1,
     topic: 'Tax Credits I — CTC, Child Care & EITC',
     irsPublications: ['Pub 596', 'Pub 503', 'Pub 972'],
     videoKeywords: ['child tax credit CTC EITC SEE exam', 'child dependent care credit due diligence EA'],
@@ -112,12 +106,20 @@ export const LESSON_PLAN: LessonTopic[] = [
     videoNotes: 'P1 V5 — CTC [00:58:45]; ODC [01:02:10]; Child & Dependent Care [01:04:50]; EITC [01:09:27]',
   },
   {
-    day: 14, week: 3, part: 1,
+    day: 13, week: 3, part: 1,
     topic: 'Tax Credits II — Education, Adoption & Energy',
     irsPublications: ['Pub 970', 'Pub 17 Ch. 37'],
     videoKeywords: ['AOTC lifetime learning credit SEE exam', 'adoption credit energy credits EA exam'],
     videoUrl: 'https://www.youtube.com/watch?v=fIaY44fhBBA&t=4750',
     videoNotes: 'P1 V5 — AOTC/LLC education credits [01:19:10]; adoption credit [01:28:19]; energy credits [01:35:55]',
+  },
+  {
+    day: 14, week: 3, part: 1,
+    topic: 'Tax Credits III — ACA Coverage & Premium Tax Credit',
+    irsPublications: ['Pub 974', 'Pub 17', 'Form 8962 Instructions'],
+    videoKeywords: ['ACA premium tax credit SEE exam', 'Form 8962 advance PTC MAGI household'],
+    videoUrl: 'https://www.youtube.com/watch?v=fIaY44fhBBA&t=2288',
+    videoNotes: 'P1 V5 — ACA / Premium Tax Credit [00:38:08]; advance PTC, household income, MAGI, repayment',
   },
   {
     day: 15, week: 3, part: 1,

@@ -128,8 +128,8 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
     <div>
       <div className="mb-5 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">Google NotebookLM Prompt</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-lg font-semibold text-th-text">Google NotebookLM Prompt</h3>
+          <p className="text-sm text-th-text-muted mt-1">
             Copy this prompt into NotebookLM after uploading your source materials (IRS publications, video transcripts).
             Framed for a tax preparer learning to serve clients — not just pass an exam.
           </p>
@@ -137,10 +137,10 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
       </div>
 
       {/* How to use */}
-      <div className="bg-blue-950/30 border border-blue-800 rounded-xl p-4 mb-5">
-        <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">How to use</h4>
-        <ol className="text-sm text-gray-300 space-y-1.5 list-decimal list-inside">
-          <li>Open <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">NotebookLM</a> and create a new notebook for today's topic</li>
+      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5">
+        <h4 className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">How to use</h4>
+        <ol className="text-sm text-th-text-secondary space-y-1.5 list-decimal list-inside">
+          <li>Open <a href="https://notebooklm.google.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline">NotebookLM</a> and create a new notebook for today's topic</li>
           <li>Upload source materials: IRS publication PDFs, paste in the YouTube video URL, add any study guides</li>
           <li>Copy the prompt below and paste it into the chat input</li>
           <li>NotebookLM will synthesize your uploaded sources using this structured framework</li>
@@ -149,9 +149,9 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
 
       {/* IRS Pubs quick reference */}
       <div className="flex flex-wrap gap-2 mb-5">
-        <span className="text-xs text-gray-500">Suggested sources:</span>
+        <span className="text-xs text-th-text-faint">Suggested sources:</span>
         {topic.irsPublications.map(pub => (
-          <span key={pub} className="text-xs bg-gray-800 text-blue-400 font-mono px-2 py-1 rounded border border-gray-700">
+          <span key={pub} className="text-xs bg-th-input text-blue-600 dark:text-blue-400 font-mono px-2 py-1 rounded border border-th-border-strong">
             {pub}
           </span>
         ))}
@@ -160,7 +160,7 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
             href={topic.videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs bg-gray-800 text-red-400 px-2 py-1 rounded border border-gray-700 hover:bg-gray-700 transition-colors"
+            className="text-xs bg-th-input text-red-600 dark:text-red-400 px-2 py-1 rounded border border-th-border-strong hover:bg-th-hover transition-colors"
           >
             ▶ Video transcript
           </a>
@@ -169,7 +169,7 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
 
       {/* Prompt box */}
       <div className="relative mb-5">
-        <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 font-mono text-xs text-gray-300 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+        <div className="bg-th-card border border-th-border-strong rounded-xl p-5 font-mono text-xs text-th-text-secondary leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
           {prompt}
         </div>
 
@@ -179,7 +179,7 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
           className={`absolute top-3 right-3 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
             copied
               ? 'bg-green-700 text-green-100'
-              : 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-600'
+              : 'bg-th-input hover:bg-th-hover text-th-text-secondary hover:text-th-text border border-th-border-strong'
           }`}
         >
           {copied ? (
@@ -203,7 +203,7 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
               copied
                 ? 'bg-green-700 text-green-100'
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700'
+                : 'bg-th-input hover:bg-th-hover text-th-text-secondary border border-th-border-strong'
             }`}
           >
             {copied ? '✓ Copied to Clipboard' : '⎘ Copy Prompt'}
@@ -212,7 +212,7 @@ export default function NotebookLMPrompt({ topic, session, onContinue }: Noteboo
             href="https://notebooklm.google.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-th-input hover:bg-th-hover text-th-text-secondary border border-th-border-strong transition-colors"
           >
             Open NotebookLM ↗
           </a>

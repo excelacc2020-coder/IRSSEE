@@ -57,16 +57,16 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   return (
     <div>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-white">Decision Flow Map</h3>
-        <p className="text-sm text-gray-400 mt-1">
+        <h3 className="text-lg font-semibold text-th-text">Decision Flow Map</h3>
+        <p className="text-sm text-th-text-muted mt-1">
           How a tax professional thinks through {topic.topic} — step by step.
         </p>
       </div>
 
       {!mindMap && !loading && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
+        <div className="bg-th-card border border-th-border rounded-xl p-6 text-center">
           {error && (
-            <div className="mb-4 bg-red-900/30 border border-red-800 rounded-lg px-4 py-3 text-red-400 text-sm text-left">
+            <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-red-600 dark:text-red-400 text-sm text-left">
               {error}
             </div>
           )}
@@ -79,7 +79,7 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
           {alreadyGenerated && (
             <button
               onClick={onContinue}
-              className="ml-3 bg-gray-700 hover:bg-gray-600 text-gray-200 font-medium px-6 py-3 rounded-lg transition-colors"
+              className="ml-3 bg-th-hover hover:bg-gray-600 text-th-text-secondary font-medium px-6 py-3 rounded-lg transition-colors"
             >
               Continue
             </button>
@@ -88,9 +88,9 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
       )}
 
       {loading && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+        <div className="bg-th-card border border-th-border rounded-xl p-8 text-center">
           <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-gray-400 text-sm">Building decision flow map...</p>
+          <p className="text-th-text-muted text-sm">Building decision flow map...</p>
         </div>
       )}
 
@@ -98,7 +98,7 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
         <div>
           {/* Decision Flow */}
           <div className="mb-6">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Decision Flow</h4>
+            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-4">Decision Flow</h4>
             <div className="relative">
               {(mindMap.decisionFlow ?? []).map((node, i) => (
                 <div key={i}>
@@ -115,10 +115,10 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
                     </div>
 
                     {/* Right: content */}
-                    <div className={`flex-1 bg-gray-900 border border-gray-700 rounded-xl p-4 ${
+                    <div className={`flex-1 bg-th-card border border-th-border-strong rounded-xl p-4 ${
                       i < (mindMap.decisionFlow ?? []).length - 1 ? 'mb-2' : ''
                     }`}>
-                      <div className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+                      <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
                         {node.node}
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 mt-2">
@@ -140,24 +140,24 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
 
           {/* Reference Tables */}
           <div className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Reference Framework</h4>
+            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-3">Reference Framework</h4>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {REFERENCE_CONFIG.map(({ key, label, color, emptyLabel }) => {
                 const items = mindMap[key] as string[] | undefined;
                 return (
-                  <div key={key} className={`border rounded-xl p-4 ${color.split(' ').slice(0, 2).join(' ')} bg-gray-900/50`}>
+                  <div key={key} className={`border rounded-xl p-4 ${color.split(' ').slice(0, 2).join(' ')} bg-th-card/50`}>
                     <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${color.split(' ')[2]}`}>{label}</h5>
                     {items && items.length > 0 ? (
                       <ul className="space-y-1.5">
                         {items.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-gray-300">
-                            <span className="text-gray-600 flex-shrink-0 mt-0.5">·</span>
+                          <li key={i} className="flex items-start gap-2 text-xs text-th-text-secondary">
+                            <span className="text-th-text-faint flex-shrink-0 mt-0.5">·</span>
                             <span className="leading-snug">{item}</span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-gray-600 italic">{emptyLabel}</p>
+                      <p className="text-xs text-th-text-faint italic">{emptyLabel}</p>
                     )}
                   </div>
                 );
@@ -168,7 +168,7 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
           <div className="flex items-center justify-between pt-2">
             <button
               onClick={generate}
-              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-sm text-th-text-faint hover:text-th-text-secondary transition-colors"
             >
               Regenerate
             </button>

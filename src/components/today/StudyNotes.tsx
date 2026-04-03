@@ -34,28 +34,28 @@ export default function StudyNotes({ topic, session, onNotesChange, onContinue }
     <div>
       <div className="mb-4 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">Study Notes</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-lg font-semibold text-th-text">Study Notes</h3>
+          <p className="text-sm text-th-text-muted mt-1">
             Your notes for {topic.topic}. Auto-saved as you type.
           </p>
         </div>
         {saved && <span className="text-xs text-green-500 mt-1">Saved</span>}
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6">
-        <div className="px-4 py-2 border-b border-gray-800 flex items-center gap-2">
-          <span className="text-xs text-gray-500">Notes for Day {topic.day}: {topic.topic}</span>
+      <div className="bg-th-card border border-th-border rounded-xl overflow-hidden mb-6">
+        <div className="px-4 py-2 border-b border-th-border flex items-center gap-2">
+          <span className="text-xs text-th-text-faint">Notes for Day {topic.day}: {topic.topic}</span>
         </div>
         <textarea
           value={notes}
           onChange={e => handleChange(e.target.value)}
           placeholder={`Write your study notes here...\n\nSuggested structure:\n• Key rules and thresholds\n• Exceptions to remember\n• Form numbers and their purpose\n• Common exam traps\n• Questions to look up`}
-          className="w-full bg-transparent text-gray-200 placeholder-gray-600 px-4 py-4 text-sm leading-relaxed resize-none focus:outline-none min-h-[320px] font-mono"
+          className="w-full bg-transparent text-th-text-secondary placeholder-th-text-faint px-4 py-4 text-sm leading-relaxed resize-none focus:outline-none min-h-[320px] font-mono"
         />
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-600">{notes.length} characters</span>
+        <span className="text-xs text-th-text-faint">{notes.length} characters</span>
         <button
           onClick={() => {
             if (debounceRef.current) clearTimeout(debounceRef.current);

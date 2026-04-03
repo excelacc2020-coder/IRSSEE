@@ -38,7 +38,7 @@ function resolveModel(config: AIConfig, task: TaskType): string {
 
 // ─── Provider adapters ───────────────────────────────────────────────────────
 
-async function callClaudeModel(apiKey: string, model: string, prompt: string): Promise<Response> {
+async function callClaudeModel(apiKey: string, model: string, prompt: string, maxTokens = 4096): Promise<Response> {
   return fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -49,21 +49,21 @@ async function callClaudeModel(apiKey: string, model: string, prompt: string): P
     },
     body: JSON.stringify({
       model,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
 }
 
-async function callClaude(apiKey: string, model: string, prompt: string): Promise<string> {
-  let response = await callClaudeModel(apiKey, model, prompt);
+async function callClaude(apiKey: string, model: string, prompt: string, maxTokens = 4096): Promise<string> {
+  let response = await callClaudeModel(apiKey, model, prompt, maxTokens);
 
   // Fallback chain on 529 overloaded: Opus → Sonnet → Haiku
   if (response.status === 529 && model === CLAUDE_OPUS_MODEL) {
-    response = await callClaudeModel(apiKey, CLAUDE_SONNET_MODEL, prompt);
+    response = await callClaudeModel(apiKey, CLAUDE_SONNET_MODEL, prompt, maxTokens);
   }
   if (response.status === 529) {
-    response = await callClaudeModel(apiKey, CLAUDE_HAIKU_MODEL, prompt);
+    response = await callClaudeModel(apiKey, CLAUDE_HAIKU_MODEL, prompt, maxTokens);
   }
 
   if (!response.ok) {
@@ -79,7 +79,8 @@ async function callOpenAICompat(
   baseUrl: string,
   apiKey: string,
   model: string,
-  prompt: string
+  prompt: string,
+  maxTokens = 4096
 ): Promise<string> {
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
@@ -89,7 +90,7 @@ async function callOpenAICompat(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -105,7 +106,7 @@ async function callOpenAICompat(
   return data.choices[0]?.message?.content ?? '';
 }
 
-async function callGemini(apiKey: string, model: string, prompt: string): Promise<string> {
+async function callGemini(apiKey: string, model: string, prompt: string, maxTokens = 4096): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
@@ -113,7 +114,7 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 4096 },
+      generationConfig: { maxOutputTokens: maxTokens },
     }),
   });
 
@@ -130,18 +131,22 @@ async function callGemini(apiKey: string, model: string, prompt: string): Promis
 
 // ─── Core dispatch ───────────────────────────────────────────────────────────
 
+// Morning brief and mind map need more tokens for structured nested JSON output
+const HIGH_TOKEN_TASKS: TaskType[] = ['morningBrief', 'mindMap'];
+
 async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise<string> {
   const model = resolveModel(config, task);
+  const maxTokens = HIGH_TOKEN_TASKS.includes(task) ? 8192 : 4096;
 
   switch (config.provider) {
     case 'claude':
-      return callClaude(config.apiKey, model, prompt);
+      return callClaude(config.apiKey, model, prompt, maxTokens);
     case 'groq':
-      return callOpenAICompat('https://api.groq.com/openai/v1', config.apiKey, model, prompt);
+      return callOpenAICompat('https://api.groq.com/openai/v1', config.apiKey, model, prompt, maxTokens);
     case 'deepseek':
-      return callOpenAICompat('https://api.deepseek.com/v1', config.apiKey, model, prompt);
+      return callOpenAICompat('https://api.deepseek.com/v1', config.apiKey, model, prompt, maxTokens);
     case 'gemini':
-      return callGemini(config.apiKey, model, prompt);
+      return callGemini(config.apiKey, model, prompt, maxTokens);
   }
 }
 
@@ -161,7 +166,43 @@ function parseJSON<T>(raw: string): T {
     if (lastBrace !== -1) cleaned = cleaned.slice(firstBrace, lastBrace + 1);
   }
 
-  return JSON.parse(cleaned) as T;
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    // Attempt to repair truncated JSON by closing open brackets/braces
+    return JSON.parse(repairTruncatedJSON(cleaned)) as T;
+  }
+}
+
+/**
+ * Attempts to repair JSON truncated mid-output by the AI model.
+ * Strips the last incomplete value and closes all open brackets/braces.
+ */
+function repairTruncatedJSON(json: string): string {
+  // Remove trailing incomplete string value (truncated mid-string)
+  let repaired = json.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/, '');
+  // Remove trailing incomplete key
+  repaired = repaired.replace(/,\s*"[^"]*$/, '');
+  // Remove dangling comma
+  repaired = repaired.replace(/,\s*$/, '');
+
+  // Count open brackets/braces and close them
+  const opens: string[] = [];
+  let inString = false;
+  let escape = false;
+
+  for (const ch of repaired) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') opens.push('}');
+    else if (ch === '[') opens.push(']');
+    else if (ch === '}' || ch === ']') opens.pop();
+  }
+
+  // Close in reverse order
+  return repaired + opens.reverse().join('');
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -195,10 +236,11 @@ export async function generateMCQs(
   config: AIConfig,
   topic: string,
   part: number,
-  errorCategories: string[]
+  errorCategories: string[],
+  coveredTopics: string[] = []
 ): Promise<MCQSet> {
   const errorContext = errorCategories.length > 0 ? errorCategories.join(', ') : '';
-  const prompt = MCQ_PROMPT(topic, part, errorContext);
+  const prompt = MCQ_PROMPT(topic, part, errorContext, coveredTopics);
   const raw = await callAI(config, 'mcq', prompt);
   return parseJSON<MCQSet>(raw);
 }

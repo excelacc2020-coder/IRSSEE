@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { generateMCQs, categorizeError } from '../../services/aiService';
 import { saveError, parseQuizQuestions, parseQuizScenario, parseQuizAnswers } from '../../services/storageService';
+import { LESSON_PLAN } from '../../constants/lessonPlan';
 import type { User, Session, UserSettings, LessonTopic, MCQQuestion } from '../../types';
 
 interface MCQQuizProps {
@@ -38,11 +39,17 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
     setError('');
 
     try {
+      // Build list of topics covered up to and including today
+      const coveredTopics = LESSON_PLAN
+        .filter(t => t.day <= topic.day)
+        .map(t => t.topic);
+
       const mcqSet = await generateMCQs(
         { provider: settings.ai_provider, apiKey: settings.ai_api_key, model: settings.ai_model },
         topic.topic,
         topic.part,
-        []
+        [],
+        coveredTopics
       );
       setScenario(mcqSet.scenario);
       setQuestions(mcqSet.questions);
@@ -118,14 +125,14 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
     return (
       <div>
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-white">MCQ Quiz</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <h3 className="text-lg font-semibold text-th-text">MCQ Quiz</h3>
+          <p className="text-sm text-th-text-muted mt-1">
             One complex client scenario, 6 questions — all referencing the same real-world situation.
           </p>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 text-center">
+        <div className="bg-th-card border border-th-border rounded-xl p-6 text-center">
           {error && (
-            <div className="mb-4 bg-red-900/30 border border-red-800 rounded-lg px-4 py-3 text-red-400 text-sm text-left">
+            <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-red-600 dark:text-red-400 text-sm text-left">
               {error}
             </div>
           )}
@@ -142,9 +149,9 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
 
   if (loading) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+      <div className="bg-th-card border border-th-border rounded-xl p-8 text-center">
         <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-gray-400 text-sm">
+        <p className="text-th-text-muted text-sm">
           {questions.length === 0 ? 'Building client scenario and quiz questions...' : 'Scoring and categorizing errors...'}
         </p>
       </div>
@@ -155,12 +162,12 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
     <div>
       <div className="mb-5 flex items-start justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">MCQ Quiz</h3>
-          <p className="text-sm text-gray-400 mt-1">{topic.topic}</p>
+          <h3 className="text-lg font-semibold text-th-text">MCQ Quiz</h3>
+          <p className="text-sm text-th-text-muted mt-1">{topic.topic}</p>
         </div>
         {submitted && (
           <div className={`text-center px-4 py-2 rounded-lg border flex-shrink-0 ml-4 ${
-            score >= 4 ? 'bg-green-900/30 border-green-700 text-green-300' : 'bg-red-900/30 border-red-700 text-red-300'
+            score >= 4 ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-300'
           }`}>
             <div className="text-2xl font-bold">{score}/{questions.length}</div>
             <div className="text-xs">{score >= 4 ? 'Passed' : 'Review needed'}</div>
@@ -170,16 +177,16 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
 
       {/* Scenario Card — shown at top, always visible during quiz */}
       {scenario && (
-        <div className="mb-6 bg-blue-950/30 border border-blue-800 rounded-xl p-5">
-          <div className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-3">
+        <div className="mb-6 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-5">
+          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">
             Client Scenario — All questions refer to this situation
           </div>
-          <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">{scenario}</p>
+          <p className="text-sm text-th-text-secondary leading-relaxed whitespace-pre-wrap">{scenario}</p>
         </div>
       )}
 
       {error && (
-        <div className="mb-4 bg-red-900/30 border border-red-800 rounded-lg px-4 py-3 text-red-400 text-sm">
+        <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-red-600 dark:text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -192,23 +199,23 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
           return (
             <div
               key={q.id}
-              className={`bg-gray-900 border rounded-xl p-5 ${
+              className={`bg-th-card border rounded-xl p-5 ${
                 submitted
-                  ? isCorrect ? 'border-green-700' : 'border-red-700'
-                  : 'border-gray-800'
+                  ? isCorrect ? 'border-green-300 dark:border-green-700' : 'border-red-300 dark:border-red-700'
+                  : 'border-th-border'
               }`}
             >
               <div className="flex items-start gap-3 mb-4">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-300">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-th-input flex items-center justify-center text-xs font-bold text-th-text-secondary">
                   {idx + 1}
                 </span>
                 <div className="flex-1">
-                  <span className="text-xs text-gray-500 uppercase tracking-wider mb-1 block">
+                  <span className="text-xs text-th-text-faint uppercase tracking-wider mb-1 block">
                     {q.type === 'direct' ? 'Direct Question' :
                      q.type === 'incomplete' ? 'Complete the Sentence' :
                      q.type === 'except' ? 'All EXCEPT' : 'Scenario-Based'}
                   </span>
-                  <p className="text-white text-sm leading-relaxed">{q.question}</p>
+                  <p className="text-th-text text-sm leading-relaxed">{q.question}</p>
                 </div>
               </div>
 
@@ -218,18 +225,18 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
                   const isSelected = userAnswer === key;
                   const isCorrectOption = key === q.correct;
 
-                  let optionStyle = 'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700 hover:border-gray-600';
+                  let optionStyle = 'bg-th-input border-th-border-strong text-th-text-secondary hover:bg-th-hover hover:border-th-border-strong';
 
                   if (submitted) {
                     if (isCorrectOption) {
-                      optionStyle = 'bg-green-900/40 border-green-700 text-green-200';
+                      optionStyle = 'bg-green-50 dark:bg-green-900/40 border-green-300 dark:border-green-700 text-green-700 dark:text-green-200';
                     } else if (isSelected && !isCorrectOption) {
-                      optionStyle = 'bg-red-900/40 border-red-700 text-red-200';
+                      optionStyle = 'bg-red-50 dark:bg-red-900/40 border-red-300 dark:border-red-700 text-red-700 dark:text-red-200';
                     } else {
-                      optionStyle = 'bg-gray-800/50 border-gray-700 text-gray-500';
+                      optionStyle = 'bg-th-input/50 border-th-border-strong text-th-text-faint';
                     }
                   } else if (isSelected) {
-                    optionStyle = 'bg-blue-900/40 border-blue-600 text-blue-200';
+                    optionStyle = 'bg-blue-100 dark:bg-blue-900/40 border-blue-600 text-blue-700 dark:text-blue-200';
                   }
 
                   return (
@@ -245,19 +252,19 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
                         {key}
                       </span>
                       <span className="flex-1 leading-snug">{optionText}</span>
-                      {submitted && isCorrectOption && <span className="ml-auto text-green-400 text-xs flex-shrink-0">Correct</span>}
-                      {submitted && isSelected && !isCorrectOption && <span className="ml-auto text-red-400 text-xs flex-shrink-0">Your answer</span>}
+                      {submitted && isCorrectOption && <span className="ml-auto text-green-600 dark:text-green-400 text-xs flex-shrink-0">Correct</span>}
+                      {submitted && isSelected && !isCorrectOption && <span className="ml-auto text-red-600 dark:text-red-400 text-xs flex-shrink-0">Your answer</span>}
                     </button>
                   );
                 })}
               </div>
 
               {submitted && reviewMode && (
-                <div className="mt-4 ml-10 p-3 bg-gray-800/60 rounded-lg border border-gray-700">
-                  <p className="text-xs font-semibold text-gray-400 mb-1">Explanation</p>
-                  <p className="text-sm text-gray-300 leading-relaxed">{q.explanation}</p>
+                <div className="mt-4 ml-10 p-3 bg-th-input/60 rounded-lg border border-th-border-strong">
+                  <p className="text-xs font-semibold text-th-text-muted mb-1">Explanation</p>
+                  <p className="text-sm text-th-text-secondary leading-relaxed">{q.explanation}</p>
                   {!isCorrect && (
-                    <p className="text-xs text-red-400 mt-2">Wrong answer logged for error pattern analysis.</p>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">Wrong answer logged for error pattern analysis.</p>
                   )}
                 </div>
               )}
@@ -269,13 +276,13 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
       <div className="mt-6 flex items-center justify-between">
         {!submitted ? (
           <>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-th-text-faint">
               {Object.keys(answers).length}/{questions.length} answered
             </span>
             <button
               onClick={handleSubmit}
               disabled={Object.keys(answers).length < questions.length}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-th-hover disabled:cursor-not-allowed text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
             >
               Submit Quiz
             </button>
@@ -284,7 +291,7 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
           <>
             <button
               onClick={generate}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
+              className="text-sm text-th-text-muted hover:text-th-text transition-colors"
             >
               New Scenario
             </button>

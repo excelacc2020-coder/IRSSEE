@@ -48,9 +48,9 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
     setLoading(true);
     const s = await fetchSession(user.id, viewingDay);
     setSession(s);
-    const maxPhase = getMaxUnlockedPhase(s);
-    // Don't auto-jump to Evening Lock if already locked — stay at lock phase
-    setActivePhase(maxPhase);
+    // Don't auto-advance — always start at Morning Brief (phase 0).
+    // User navigates forward via "Continue" buttons or phase stepper.
+    setActivePhase(0);
     setLoading(false);
   }, [user.id, viewingDay]);
 
@@ -64,20 +64,17 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
       ...updates,
     });
     setSession(updated);
-    if (updated) {
-      const maxPhase = getMaxUnlockedPhase(updated);
-      if (maxPhase > activePhase) setActivePhase(maxPhase);
-    }
+    // Don't auto-advance phase — user navigates via buttons or phase stepper
     // When a day is locked, advance current_day to the next day
     if (updates.locked && viewingDay < 50) {
       await upsertUserSettings(user.id, { current_day: viewingDay + 1 });
     }
     onDataChange();
-  }, [user.id, viewingDay, topic, activePhase, onDataChange]);
+  }, [user.id, viewingDay, topic, onDataChange]);
 
   if (!topic) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="flex items-center justify-center h-64 text-th-text-faint">
         Topic not found for Day {viewingDay}
       </div>
     );
@@ -85,7 +82,7 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500 text-sm">
+      <div className="flex items-center justify-center h-64 text-th-text-faint text-sm">
         Loading session...
       </div>
     );
@@ -98,19 +95,19 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
     <div className="max-w-4xl mx-auto px-4 py-6 lg:px-8">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+        <div className="flex items-center gap-2 text-xs text-th-text-faint mb-1">
           <span>Part {topic.part}</span>
           <span>·</span>
           <span>Week {topic.week}</span>
           <span>·</span>
           <span>Day {topic.day} of 50</span>
           {isLocked && (
-            <span className="ml-2 bg-green-900/40 text-green-400 border border-green-800 px-2 py-0.5 rounded-full">
+            <span className="ml-2 bg-green-50 dark:bg-green-900/40 text-green-400 border border-green-800 px-2 py-0.5 rounded-full">
               Complete
             </span>
           )}
         </div>
-        <h2 className="text-2xl font-bold text-white">{topic.topic}</h2>
+        <h2 className="text-2xl font-bold text-th-text">{topic.topic}</h2>
       </div>
 
       {/* Phase stepper */}
@@ -128,12 +125,12 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
                 active
                   ? 'bg-blue-600 text-white'
                   : unlocked
-                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  : 'bg-gray-900 text-gray-600 cursor-not-allowed'
+                  ? 'bg-th-input text-th-text-secondary hover:bg-th-hover'
+                  : 'bg-th-card text-th-text-faint cursor-not-allowed'
               }`}
             >
               <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${
-                active ? 'bg-blue-500' : unlocked ? 'bg-gray-700' : 'bg-gray-800'
+                active ? 'bg-blue-500' : unlocked ? 'bg-th-hover' : 'bg-th-input'
               }`}>
                 {phase + 1}
               </span>

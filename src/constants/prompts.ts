@@ -9,31 +9,29 @@ Tax Year: **${TAX_YEAR}** — Use ${TAX_YEAR} figures, thresholds, and inflation
 Today's topic contains the following subtopics (separated by newlines):
 ${topic}
 
-IMPORTANT: Parse the subtopics above. Each distinct subtopic (separated by newline or bullet) becomes its own entry in the "subtopics" array and its own row in the "rulesTable" array. Be concise — this is a quick-reference scaffold, not a textbook.
+IMPORTANT: Break the topic into granular, digestible sub-items grouped by subtopic. For example, "Filing Status & Dependents" should become two sections: one for Filing Status (with items for MFJ, MFS, HOH, QSS, Single) and one for Dependents (with items for Qualifying Child test, Qualifying Relative test). Keep each item concise — one key fact per item.
 
 ${errorBridgeContext ? `Recent errors to address in the Error Bridge section:\n${errorBridgeContext}\n` : ''}
 
 Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 {
-  "subtopics": [
+  "sections": [
     {
-      "name": "Subtopic name exactly as listed above",
-      "explanation": "1-2 sentence concise explanation of this subtopic — what it is and why it matters for the exam",
-      "phaseContext": "1 sentence on how this subtopic fits within today's phase/theme and the holistic return preparation workflow"
+      "heading": "Subtopic heading (e.g., Filing Status)",
+      "items": [
+        {
+          "label": "Specific item name (e.g., Head of Household)",
+          "rule": "Key rule or definition with ${TAX_YEAR} figures",
+          "threshold": "${TAX_YEAR} dollar amount, phase-out, or time limit",
+          "form": "IRS form/schedule",
+          "tip": "Exam trap or memorization tip"
+        }
+      ]
     }
   ],
-  "rulesTable": [
-    {
-      "subtopic": "Subtopic name",
-      "keyRule": "The critical IRC rule, definition, or test to know (concise, with ${TAX_YEAR} figures)",
-      "thresholdExceptions": "Dollar thresholds, phase-outs, time limits, or key exceptions (${TAX_YEAR} values)",
-      "formsCompliance": "Relevant IRS form(s), schedule(s), key lines, or filing requirements",
-      "nuanceTaxStrategy": "Exam nuance, planning opportunity, or common strategy to be aware of"
-    }
-  ],
-  "connections": "How today's subtopics connect to other SEE exam domains and real-world ${TAX_YEAR} return preparation",
-  "examTraps": "3-5 specific exam traps, trick questions, and distractors across today's subtopics. Include any ${TAX_YEAR} law changes that trip up candidates. Format each as a bullet: '• [trap]'",
-  "errorBridge": "${errorBridgeContext ? 'Analysis of recent wrong answers and specific guidance to avoid repeating them' : 'No recent errors for these subtopics. Focus on the most commonly tested nuances.'}"
+  "connections": "1-2 sentences on how today's subtopics connect to other SEE exam domains",
+  "examTraps": "3-5 bullet points: '• [trap]'",
+  "errorBridge": "${errorBridgeContext ? 'Guidance to avoid repeating recent wrong answers' : 'No recent errors. Focus on commonly tested nuances.'}"
 }
 `.trim();
 
@@ -65,12 +63,17 @@ Return ONLY a valid JSON object (no markdown, no explanation):
 }
 `.trim();
 
-export const MCQ_PROMPT = (topic: string, part: number, errorContext: string) => `
+export const MCQ_PROMPT = (topic: string, part: number, errorContext: string, coveredTopics: string[]) => `
 You are an expert IRS SEE exam question writer for Part ${part}.
 
 Tax Year: **${TAX_YEAR}** — All dollar amounts, thresholds, and phase-outs must use ${TAX_YEAR} figures.
 
 Topic: **${topic}**
+
+${coveredTopics.length > 0 ? `IMPORTANT — Topics the student has studied so far (ONLY test knowledge from these):
+${coveredTopics.map((t, i) => `${i + 1}. ${t}`).join('\n')}
+
+Do NOT test knowledge from topics the student has not yet covered. All questions, scenario facts, and answer options must be answerable using ONLY the topics listed above. If the current topic references concepts from future topics, test only the aspects covered so far.` : ''}
 
 Create ONE realistic, complex client scenario (150-200 words) set in tax year ${TAX_YEAR}, involving a real person or business with multiple financial events, edge cases, and potential exam traps related to this topic. Give the client a name and specific dollar amounts using ${TAX_YEAR} values.
 
@@ -84,6 +87,9 @@ Rules for all questions:
 - All 4 options must be plausible and specific (real ${TAX_YEAR} dollar amounts, real rules)
 - Include specific ${TAX_YEAR} thresholds, percentages, form numbers where relevant
 - Wrong options should represent common mistakes, not obviously wrong answers
+- CRITICAL: Exactly ONE of the four options (A/B/C/D) must be correct. Verify each question has one and only one defensibly correct answer before including it
+- Ensure the scenario contains all facts needed to answer every question — do not require knowledge not present in the scenario or covered topics
+- For calculation questions, double-check the arithmetic: work through the calculation step by step and verify the correct option matches
 ${errorContext ? `- Address these known weak areas: ${errorContext}` : ''}
 
 Return ONLY a valid JSON object (no markdown, no explanation):

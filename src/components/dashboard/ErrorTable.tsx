@@ -33,7 +33,7 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
           <button
             onClick={() => setFilterCategory('all')}
             className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-              filterCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+              filterCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-th-input text-th-text-muted hover:text-th-text'
             }`}
           >
             All Categories
@@ -45,7 +45,7 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
               className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${
                 filterCategory === cat
                   ? `${CATEGORY_CONFIG[cat].color}`
-                  : 'bg-gray-800 text-gray-400 hover:text-white border-gray-700'
+                  : 'bg-th-input text-th-text-muted hover:text-th-text border-th-border-strong'
               }`}
             >
               {CATEGORY_CONFIG[cat].label}
@@ -59,7 +59,7 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
               key={p}
               onClick={() => setFilterPart(p)}
               className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
-                filterPart === p ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'
+                filterPart === p ? 'bg-blue-600 text-white' : 'bg-th-input text-th-text-muted hover:text-th-text'
               }`}
             >
               {p === 'all' ? 'All Parts' : `Part ${p}`}
@@ -68,12 +68,12 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
         </div>
       </div>
 
-      <div className="text-xs text-gray-500 mb-3">
+      <div className="text-xs text-th-text-faint mb-3">
         Showing {filtered.length} of {errors.length} errors
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-500 text-sm">
+        <div className="bg-th-card border border-th-border rounded-xl p-8 text-center text-th-text-faint text-sm">
           No errors recorded yet. Complete some MCQ quizzes to see your error patterns.
         </div>
       ) : (
@@ -81,37 +81,37 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
           {filtered.map(err => (
             <div
               key={err.id}
-              className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden"
+              className="bg-th-card border border-th-border rounded-xl overflow-hidden"
             >
               <button
                 onClick={() => setExpanded(expanded === err.id ? null : err.id)}
-                className="w-full flex items-start gap-3 p-4 text-left hover:bg-gray-800/50 transition-colors"
+                className="w-full flex items-start gap-3 p-4 text-left hover:bg-th-input/50 transition-colors"
               >
                 <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border mt-0.5 ${CATEGORY_CONFIG[err.category].color}`}>
                   {CATEGORY_CONFIG[err.category].label}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-200 line-clamp-2 leading-snug">{err.question}</p>
-                  <p className="text-xs text-gray-500 mt-1">Day {err.day} · {err.topic}</p>
+                  <p className="text-sm text-th-text-secondary line-clamp-2 leading-snug">{err.question}</p>
+                  <p className="text-xs text-th-text-faint mt-1">Day {err.day} · {err.topic}</p>
                 </div>
-                <span className="text-gray-600 text-sm flex-shrink-0 mt-0.5">{expanded === err.id ? '▲' : '▼'}</span>
+                <span className="text-th-text-faint text-sm flex-shrink-0 mt-0.5">{expanded === err.id ? '▲' : '▼'}</span>
               </button>
 
               {expanded === err.id && (
-                <div className="px-4 pb-4 border-t border-gray-800 pt-3 space-y-3">
+                <div className="px-4 pb-4 border-t border-th-border pt-3 space-y-3">
                   <div className="grid md:grid-cols-2 gap-3">
                     <div className="bg-red-950/20 border border-red-900/50 rounded-lg p-3">
-                      <p className="text-xs text-red-400 mb-1">Your Answer</p>
-                      <p className="text-sm text-gray-300">{err.user_answer}</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mb-1">Your Answer</p>
+                      <p className="text-sm text-th-text-secondary">{err.user_answer}</p>
                     </div>
                     <div className="bg-green-950/20 border border-green-900/50 rounded-lg p-3">
-                      <p className="text-xs text-green-400 mb-1">Correct Answer</p>
-                      <p className="text-sm text-gray-300">{err.correct_answer}</p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mb-1">Correct Answer</p>
+                      <p className="text-sm text-th-text-secondary">{err.correct_answer}</p>
                     </div>
                   </div>
-                  <div className="bg-gray-800/60 rounded-lg p-3">
-                    <p className="text-xs text-gray-400 mb-1">Explanation</p>
-                    <p className="text-sm text-gray-300 leading-relaxed">{err.explanation}</p>
+                  <div className="bg-th-input/60 rounded-lg p-3">
+                    <p className="text-xs text-th-text-muted mb-1">Explanation</p>
+                    <p className="text-sm text-th-text-secondary leading-relaxed">{err.explanation}</p>
                   </div>
                 </div>
               )}

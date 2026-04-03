@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTheme } from './hooks/useTheme';
 import Sidebar from './components/Sidebar';
 import TodayTab from './components/tabs/TodayTab';
 import DashboardTab from './components/tabs/DashboardTab';
@@ -10,6 +11,7 @@ import { getAllSessions, getUserSettings } from './services/storageService';
 import type { ActiveTab, User, Session, UserSettings } from './types';
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('today');
@@ -63,7 +65,7 @@ export default function App() {
 
   if (loadingAuth) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-400">
+      <div className="min-h-screen bg-th-bg flex items-center justify-center text-th-text-muted">
         <div className="animate-pulse">Loading command center...</div>
       </div>
     );
@@ -74,13 +76,15 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-950">
+    <div className="flex min-h-screen bg-th-bg">
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
         currentDay={settings?.current_day ?? 1}
         sessions={sessions}
         onDaySelect={setViewingDay}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <main className="flex-1 overflow-auto lg:mt-0 mt-12">

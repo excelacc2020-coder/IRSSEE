@@ -35,11 +35,11 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {(['new', 'reviewing', 'mastered'] as CardStatus[]).map(status => (
-          <div key={status} className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-            <div className="text-2xl font-bold text-white">
+          <div key={status} className="bg-th-card border border-th-border rounded-xl p-3 text-center">
+            <div className="text-2xl font-bold text-th-text">
               {cards.filter(c => c.status === status).length}
             </div>
-            <div className="text-xs text-gray-500 mt-1">{STATUS_CONFIG[status].label}</div>
+            <div className="text-xs text-th-text-faint mt-1">{STATUS_CONFIG[status].label}</div>
           </div>
         ))}
       </div>
@@ -61,13 +61,13 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search cards..."
-          className="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500 placeholder-gray-500 w-full sm:w-48"
+          className="bg-th-input border border-th-border-strong text-th-text text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500 placeholder-th-text-faint w-full sm:w-48"
         />
 
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value as CardStatus | 'all')}
-          className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+          className="bg-th-input border border-th-border-strong text-th-text-secondary text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
         >
           <option value="all">All Status</option>
           {(['new', 'reviewing', 'mastered'] as CardStatus[]).map(s => (
@@ -78,7 +78,7 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
         <select
           value={filterTopic}
           onChange={e => setFilterTopic(e.target.value)}
-          className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+          className="bg-th-input border border-th-border-strong text-th-text-secondary text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
         >
           <option value="all">All Topics</option>
           {topics.map(t => (
@@ -87,13 +87,13 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
         </select>
       </div>
 
-      <div className="text-xs text-gray-500 mb-3">
+      <div className="text-xs text-th-text-faint mb-3">
         Showing {filtered.length} of {cards.length} cards
       </div>
 
       {/* Card List */}
       {filtered.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center text-gray-500 text-sm">
+        <div className="bg-th-card border border-th-border rounded-xl p-8 text-center text-th-text-faint text-sm">
           {cards.length === 0
             ? 'No cards yet. Complete some days to generate Anki cards during the Evening Lock phase.'
             : 'No cards match your filters.'}
@@ -101,15 +101,15 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
       ) : (
         <div className="space-y-2">
           {filtered.map(card => (
-            <div key={card.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <div key={card.id} className="bg-th-card border border-th-border rounded-xl p-4">
               <div className="flex items-start justify-between gap-3 mb-2">
-                <p className="text-sm text-white font-medium leading-snug flex-1">{card.question}</p>
+                <p className="text-sm text-th-text font-medium leading-snug flex-1">{card.question}</p>
                 <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border ${STATUS_CONFIG[card.status].color}`}>
                   {STATUS_CONFIG[card.status].label}
                 </span>
               </div>
-              <p className="text-sm text-gray-400 leading-relaxed">{card.answer}</p>
-              <div className="flex items-center gap-3 mt-3 text-xs text-gray-600">
+              <p className="text-sm text-th-text-muted leading-relaxed">{card.answer}</p>
+              <div className="flex items-center gap-3 mt-3 text-xs text-th-text-faint">
                 <span>{card.topic}</span>
                 <span>·</span>
                 <span>Day {card.day}</span>

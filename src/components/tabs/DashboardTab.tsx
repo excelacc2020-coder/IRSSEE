@@ -47,29 +47,29 @@ export default function DashboardTab({ user }: DashboardTabProps) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 lg:px-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white">Dashboard</h2>
-        <p className="text-sm text-gray-400 mt-1">Study analytics and error patterns</p>
+        <h2 className="text-2xl font-bold text-th-text">Dashboard</h2>
+        <p className="text-sm text-th-text-muted mt-1">Study analytics and error patterns</p>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-white">{completedDays}</div>
-          <div className="text-xs text-gray-500 mt-1">Days Complete</div>
+        <div className="bg-th-card border border-th-border rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-th-text">{completedDays}</div>
+          <div className="text-xs text-th-text-faint mt-1">Days Complete</div>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-white">{errors.length}</div>
-          <div className="text-xs text-gray-500 mt-1">Total Errors</div>
+        <div className="bg-th-card border border-th-border rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-th-text">{errors.length}</div>
+          <div className="text-xs text-th-text-faint mt-1">Total Errors</div>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-          <div className={`text-3xl font-bold ${avgPct >= 83 ? 'text-green-400' : avgPct >= 67 ? 'text-yellow-400' : 'text-red-400'}`}>
+        <div className="bg-th-card border border-th-border rounded-xl p-4 text-center">
+          <div className={`text-3xl font-bold ${avgPct >= 83 ? 'text-green-600 dark:text-green-400' : avgPct >= 67 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
             {avgPct}%
           </div>
-          <div className="text-xs text-gray-500 mt-1">Avg Quiz Score</div>
+          <div className="text-xs text-th-text-faint mt-1">Avg Quiz Score</div>
         </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
-          <div className="text-3xl font-bold text-white">{50 - currentDay}</div>
-          <div className="text-xs text-gray-500 mt-1">Days Remaining</div>
+        <div className="bg-th-card border border-th-border rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-th-text">{50 - currentDay}</div>
+          <div className="text-xs text-th-text-faint mt-1">Days Remaining</div>
         </div>
       </div>
 
@@ -91,11 +91,11 @@ export default function DashboardTab({ user }: DashboardTabProps) {
       )}
 
       {/* View Toggle */}
-      <div className="flex gap-1 mb-4 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-4 bg-th-card border border-th-border rounded-lg p-1 w-fit">
         <button
           onClick={() => setActiveView('heatmap')}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeView === 'heatmap' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+            activeView === 'heatmap' ? 'bg-blue-600 text-white' : 'text-th-text-muted hover:text-th-text'
           }`}
         >
           Topic Heat Map
@@ -103,7 +103,7 @@ export default function DashboardTab({ user }: DashboardTabProps) {
         <button
           onClick={() => setActiveView('errors')}
           className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeView === 'errors' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+            activeView === 'errors' ? 'bg-blue-600 text-white' : 'text-th-text-muted hover:text-th-text'
           }`}
         >
           Error Log
@@ -116,7 +116,7 @@ export default function DashboardTab({ user }: DashboardTabProps) {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-sm">Loading...</div>
+        <div className="text-center py-12 text-th-text-faint text-sm">Loading...</div>
       ) : activeView === 'heatmap' ? (
         <TopicHeatMap sessions={sessions} currentDay={currentDay} />
       ) : (

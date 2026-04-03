@@ -36,21 +36,21 @@ export default function CardsTab({ user }: CardsTabProps) {
       {reviewCards ? (
         <>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white">Flip Review</h2>
-            <p className="text-sm text-gray-400 mt-1">{reviewCards.length} cards in this session</p>
+            <h2 className="text-2xl font-bold text-th-text">Flip Review</h2>
+            <p className="text-sm text-th-text-muted mt-1">{reviewCards.length} cards in this session</p>
           </div>
           <FlipReview cards={reviewCards} onExit={handleExitReview} />
         </>
       ) : (
         <>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-white">Card Library</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <h2 className="text-2xl font-bold text-th-text">Card Library</h2>
+            <p className="text-sm text-th-text-muted mt-1">
               {cards.length} flashcard{cards.length !== 1 ? 's' : ''} generated from your study sessions
             </p>
           </div>
           {loading ? (
-            <div className="text-center py-12 text-gray-500 text-sm">Loading cards...</div>
+            <div className="text-center py-12 text-th-text-faint text-sm">Loading cards...</div>
           ) : (
             <CardLibrary cards={cards} onStartReview={handleStartReview} />
           )}

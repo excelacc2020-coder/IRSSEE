@@ -8,6 +8,8 @@ interface SidebarProps {
   currentDay: number;
   sessions: Session[];
   onDaySelect: (day: number) => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
 }
 
 const NAV_TABS: { id: ActiveTab; label: string }[] = [
@@ -18,7 +20,7 @@ const NAV_TABS: { id: ActiveTab; label: string }[] = [
 ];
 
 function getStatusColor(day: number, currentDay: number, sessions: Session[]): string {
-  if (day > currentDay) return 'bg-gray-700'; // locked
+  if (day > currentDay) return 'bg-th-hover'; // locked
   const session = sessions.find(s => s.day === day);
   if (!session) return 'bg-gray-600'; // not started
   if (session.locked) return 'bg-green-600'; // completed
@@ -33,6 +35,8 @@ export default function Sidebar({
   currentDay,
   sessions,
   onDaySelect,
+  theme,
+  toggleTheme,
 }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedPart, setExpandedPart] = useState<number>(
@@ -42,21 +46,21 @@ export default function Sidebar({
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-gray-800">
-        <h1 className="text-lg font-bold text-white">EA Command Center</h1>
-        <p className="text-xs text-gray-500 mt-0.5">SEE Exam Prep — Day {currentDay} of 50</p>
+      <div className="px-4 py-5 border-b border-th-border">
+        <h1 className="text-lg font-bold text-th-text">EA Command Center</h1>
+        <p className="text-xs text-th-text-faint mt-0.5">SEE Exam Prep — Day {currentDay} of 50</p>
       </div>
 
       {/* Nav Tabs */}
-      <nav className="px-3 py-3 border-b border-gray-800 space-y-1">
+      <nav className="px-3 py-3 border-b border-th-border space-y-1">
         {NAV_TABS.map(tab => (
           <button
             key={tab.id}
             onClick={() => { onTabChange(tab.id); setMobileOpen(false); }}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                ? 'bg-blue-600 text-th-text'
+                : 'text-th-text-muted hover:text-th-text hover:bg-th-input'
             }`}
           >
             {tab.label}
@@ -66,7 +70,7 @@ export default function Sidebar({
 
       {/* Lesson Plan */}
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1 mb-2">
+        <p className="text-xs font-semibold text-th-text-faint uppercase tracking-wider px-1 mb-2">
           Lesson Plan
         </p>
 
@@ -78,7 +82,7 @@ export default function Sidebar({
             <div key={part} className="mb-2">
               <button
                 onClick={() => setExpandedPart(isExpanded ? 0 : part)}
-                className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-gray-400 hover:text-white rounded-md hover:bg-gray-800 transition-colors"
+                className="w-full flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-th-text-muted hover:text-th-text rounded-md hover:bg-th-input transition-colors"
               >
                 <span>{PART_LABELS[part]}</span>
                 <span className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>›</span>
@@ -101,10 +105,10 @@ export default function Sidebar({
                         disabled={topic.day > currentDay}
                         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
                           isCurrent
-                            ? 'bg-gray-700 text-white font-medium'
+                            ? 'bg-th-hover text-th-text font-medium'
                             : topic.day > currentDay
-                            ? 'text-gray-600 cursor-not-allowed'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800 cursor-pointer'
+                            ? 'text-th-text-faint cursor-not-allowed'
+                            : 'text-th-text-muted hover:text-th-text hover:bg-th-input cursor-pointer'
                         }`}
                       >
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
@@ -121,9 +125,22 @@ export default function Sidebar({
         })}
       </div>
 
+      {/* Theme Toggle */}
+      <div className="px-4 py-3 border-t border-th-border">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-th-text-secondary hover:text-th-text hover:bg-th-input transition-colors"
+        >
+          <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+          <span className="px-2 py-0.5 rounded bg-th-input text-xs text-th-text-muted">
+            {theme === 'dark' ? 'Light' : 'Dark'}
+          </span>
+        </button>
+      </div>
+
       {/* Legend */}
-      <div className="px-4 py-3 border-t border-gray-800">
-        <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
+      <div className="px-4 py-3 border-t border-th-border">
+        <div className="grid grid-cols-2 gap-1 text-xs text-th-text-faint">
           <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-600" />Complete</div>
           <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-600" />Quiz done</div>
           <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-600" />In progress</div>
@@ -136,11 +153,11 @@ export default function Sidebar({
   return (
     <>
       {/* Mobile hamburger */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-gray-950 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-sm font-bold text-white">EA Command Center</h1>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-th-sidebar border-b border-th-border px-4 py-3 flex items-center justify-between">
+        <h1 className="text-sm font-bold text-th-text">EA Command Center</h1>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="text-gray-400 hover:text-white p-1"
+          className="text-th-text-muted hover:text-th-text p-1"
         >
           {mobileOpen ? '✕' : '☰'}
         </button>
@@ -149,20 +166,20 @@ export default function Sidebar({
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-30 bg-black/60"
+          className="lg:hidden fixed inset-0 z-30 bg-th-overlay/60"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Mobile sidebar */}
-      <div className={`lg:hidden fixed top-0 left-0 z-40 h-full w-72 bg-gray-950 border-r border-gray-800 transform transition-transform pt-12 ${
+      <div className={`lg:hidden fixed top-0 left-0 z-40 h-full w-72 bg-th-sidebar border-r border-th-border transform transition-transform pt-12 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         {sidebarContent}
       </div>
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex flex-col w-64 bg-gray-950 border-r border-gray-800 h-screen sticky top-0 flex-shrink-0">
+      <div className="hidden lg:flex flex-col w-64 bg-th-sidebar border-r border-th-border h-screen sticky top-0 flex-shrink-0">
         {sidebarContent}
       </div>
     </>

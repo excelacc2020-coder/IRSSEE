@@ -116,17 +116,17 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 lg:px-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white">Settings</h2>
-        <p className="text-sm text-gray-400 mt-1">AI configuration, study progress, and account</p>
+        <h2 className="text-2xl font-bold text-th-text">Settings</h2>
+        <p className="text-sm text-th-text-muted mt-1">AI configuration, study progress, and account</p>
       </div>
 
       {/* AI Configuration */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
-        <h3 className="text-sm font-semibold text-white mb-4">AI Provider</h3>
+      <div className="bg-th-card border border-th-border rounded-xl p-6 mb-4">
+        <h3 className="text-sm font-semibold text-th-text mb-4">AI Provider</h3>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-gray-400 mb-1.5">Provider</label>
+            <label className="block text-xs text-th-text-muted mb-1.5">Provider</label>
             <div className="grid grid-cols-2 gap-2">
               {PROVIDERS.map(p => (
                 <button
@@ -134,8 +134,8 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
                   onClick={() => handleProviderChange(p.id)}
                   className={`p-3 rounded-lg border text-left text-sm transition-colors ${
                     provider === p.id
-                      ? 'bg-blue-900/40 border-blue-700 text-blue-200'
-                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-white'
+                      ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-200'
+                      : 'bg-th-input border-th-border-strong text-th-text-muted hover:border-th-border-strong hover:text-th-text'
                   }`}
                 >
                   {p.label}
@@ -143,34 +143,34 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
               ))}
             </div>
             {provider === 'claude' && (
-              <p className="mt-2 text-xs text-blue-400">
+              <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
                 Smart Hybrid routing: Opus 4.6 for briefs/mind maps/cards, Haiku 4.5 for MCQs/categorization
               </p>
             )}
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1.5">API Key</label>
+            <label className="block text-xs text-th-text-muted mb-1.5">API Key</label>
             <input
               type="password"
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               placeholder="Enter your API key..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-blue-500 font-mono"
+              className="w-full bg-th-input border border-th-border-strong rounded-lg px-3 py-2.5 text-th-text placeholder-th-text-faint text-sm focus:outline-none focus:border-blue-500 font-mono"
             />
-            <p className="mt-1 text-xs text-gray-600">
+            <p className="mt-1 text-xs text-th-text-faint">
               Stored securely in Supabase. Never sent to this server.
             </p>
           </div>
 
           <div>
-            <label className="block text-xs text-gray-400 mb-1.5">
+            <label className="block text-xs text-th-text-muted mb-1.5">
               Model {provider === 'claude' ? '(default — overridden by Smart Hybrid)' : ''}
             </label>
             <select
               value={model}
               onChange={e => setModel(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-gray-200 text-sm focus:outline-none focus:border-blue-500"
+              className="w-full bg-th-input border border-th-border-strong rounded-lg px-3 py-2.5 text-th-text-secondary text-sm focus:outline-none focus:border-blue-500"
             >
               {providerModels.map(m => (
                 <option key={m} value={m}>{m}</option>
@@ -182,34 +182,34 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
             <button
               onClick={handleTestConnection}
               disabled={!apiKey || testing}
-              className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-gray-200 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="bg-th-hover hover:bg-th-hover disabled:bg-th-input disabled:cursor-not-allowed text-th-text-secondary text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               {testing ? 'Testing...' : 'Test Connection'}
             </button>
             {testResult === 'success' && (
-              <span className="text-sm text-green-400">Connected</span>
+              <span className="text-sm text-green-600 dark:text-green-400">Connected</span>
             )}
             {testResult === 'fail' && (
-              <span className="text-sm text-red-400">Connection failed — check your API key</span>
+              <span className="text-sm text-red-600 dark:text-red-400">Connection failed — check your API key</span>
             )}
           </div>
         </div>
       </div>
 
       {/* Study Progress */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
-        <h3 className="text-sm font-semibold text-white mb-4">Study Progress</h3>
+      <div className="bg-th-card border border-th-border rounded-xl p-6 mb-4">
+        <h3 className="text-sm font-semibold text-th-text mb-4">Study Progress</h3>
         <div>
-          <label className="block text-xs text-gray-400 mb-1.5">Current Day (1–50)</label>
+          <label className="block text-xs text-th-text-muted mb-1.5">Current Day (1–50)</label>
           <input
             type="number"
             value={currentDay}
             onChange={e => setCurrentDay(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
             min={1}
             max={50}
-            className="w-24 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+            className="w-24 bg-th-input border border-th-border-strong rounded-lg px-3 py-2 text-th-text text-sm focus:outline-none focus:border-blue-500"
           />
-          <p className="mt-1 text-xs text-gray-600">
+          <p className="mt-1 text-xs text-th-text-faint">
             Advance your current day manually if needed.
           </p>
         </div>
@@ -225,51 +225,51 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
       </button>
 
       {/* Supabase Status */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-4">
-        <h3 className="text-sm font-semibold text-white mb-3">Supabase Connection</h3>
+      <div className="bg-th-card border border-th-border rounded-xl p-6 mb-4">
+        <h3 className="text-sm font-semibold text-th-text mb-3">Supabase Connection</h3>
         <div className="flex items-center gap-3">
           <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
             supabaseStatus === 'connected' ? 'bg-green-500' :
             supabaseStatus === 'error' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
           }`} />
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-th-text-muted">
             {supabaseStatus === 'connected' ? 'Connected' :
              supabaseStatus === 'error' ? 'Connection error — data saved locally' :
              'Checking...'}
           </span>
         </div>
-        <p className="text-xs text-gray-600 mt-2">
+        <p className="text-xs text-th-text-faint mt-2">
           Account: {user.email}
         </p>
       </div>
 
       {/* Danger Zone */}
-      <div className="bg-gray-900 border border-red-900/50 rounded-xl p-6 mb-4">
-        <h3 className="text-sm font-semibold text-red-400 mb-3">Danger Zone</h3>
+      <div className="bg-th-card border border-red-900/50 rounded-xl p-6 mb-4">
+        <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-3">Danger Zone</h3>
 
         {!showResetConfirm ? (
           <button
             onClick={() => setShowResetConfirm(true)}
-            className="bg-red-900/30 hover:bg-red-900/60 border border-red-800 text-red-300 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+            className="bg-red-50 dark:bg-red-900/30 hover:bg-red-900/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
           >
             Reset All Progress
           </button>
         ) : (
           <div>
-            <p className="text-sm text-gray-300 mb-4">
+            <p className="text-sm text-th-text-secondary mb-4">
               This will permanently delete all sessions, errors, and Anki cards. This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleReset}
                 disabled={resetting}
-                className="bg-red-700 hover:bg-red-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-red-700 hover:bg-red-600 disabled:bg-th-hover disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 {resetting ? 'Resetting...' : 'Confirm Reset'}
               </button>
               <button
                 onClick={() => setShowResetConfirm(false)}
-                className="bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                className="bg-th-hover hover:bg-th-hover text-th-text-secondary text-sm font-medium px-4 py-2 rounded-lg transition-colors"
               >
                 Cancel
               </button>
@@ -281,7 +281,7 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
       {/* Sign Out */}
       <button
         onClick={handleSignOut}
-        className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white font-medium py-3 rounded-xl transition-colors"
+        className="w-full bg-th-input hover:bg-th-hover text-th-text-secondary hover:text-th-text font-medium py-3 rounded-xl transition-colors"
       >
         Sign Out
       </button>

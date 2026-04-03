@@ -3,17 +3,72 @@
 @tailwind utilities;
 
 @layer base {
-  html {
+  /* ── Light theme (default) ─────────────────────────────────────── */
+  :root {
+    color-scheme: light;
+
+    --color-bg-app: 248 250 252;        /* slate-50 */
+    --color-bg-sidebar: 255 255 255;
+    --color-bg-card: 255 255 255;
+    --color-bg-input: 241 245 249;      /* slate-100 */
+    --color-bg-hover: 226 232 240;      /* slate-200 */
+    --color-bg-active: 203 213 225;     /* slate-300 */
+    --color-bg-overlay: 0 0 0;
+
+    --color-text: 15 23 42;             /* slate-900 */
+    --color-text-secondary: 51 65 85;   /* slate-700 */
+    --color-text-muted: 100 116 139;    /* slate-500 */
+    --color-text-faint: 148 163 184;    /* slate-400 */
+
+    --color-border: 226 232 240;        /* slate-200 */
+    --color-border-strong: 203 213 225; /* slate-300 */
+
+    --color-accent-bg: 239 246 255;     /* blue-50 */
+    --color-accent-bg-strong: 219 234 254; /* blue-100 */
+    --color-accent-border: 147 197 253; /* blue-300 */
+    --color-accent-text: 29 78 216;     /* blue-700 */
+
+    --color-scrollbar: 203 213 225;     /* slate-300 */
+  }
+
+  /* ── Dark theme ────────────────────────────────────────────────── */
+  .dark {
     color-scheme: dark;
+
+    --color-bg-app: 3 7 18;             /* gray-950 */
+    --color-bg-sidebar: 3 7 18;
+    --color-bg-card: 17 24 39;          /* gray-900 */
+    --color-bg-input: 31 41 55;         /* gray-800 */
+    --color-bg-hover: 55 65 81;         /* gray-700 */
+    --color-bg-active: 75 85 99;        /* gray-600 */
+    --color-bg-overlay: 0 0 0;
+
+    --color-text: 243 244 246;          /* gray-100 */
+    --color-text-secondary: 209 213 219; /* gray-300 */
+    --color-text-muted: 156 163 175;    /* gray-400 */
+    --color-text-faint: 107 114 128;    /* gray-500 */
+
+    --color-border: 31 41 55;           /* gray-800 */
+    --color-border-strong: 55 65 81;    /* gray-700 */
+
+    --color-accent-bg: 23 37 84;        /* blue-950 */
+    --color-accent-bg-strong: 30 58 138; /* blue-900 */
+    --color-accent-border: 29 78 216;   /* blue-700 */
+    --color-accent-text: 147 197 253;   /* blue-300 */
+
+    --color-scrollbar: 55 65 81;        /* gray-700 */
   }
 
   body {
-    @apply bg-gray-950 text-gray-100 antialiased;
+    background-color: rgb(var(--color-bg-app));
+    color: rgb(var(--color-text));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.gray.700') transparent;
+    scrollbar-color: rgb(var(--color-scrollbar)) transparent;
   }
 
   *::-webkit-scrollbar {
@@ -25,7 +80,8 @@
   }
 
   *::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full;
+    background-color: rgb(var(--color-scrollbar));
+    border-radius: 9999px;
   }
 }
 
