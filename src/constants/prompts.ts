@@ -89,7 +89,12 @@ Rules for all questions:
 - Wrong options should represent common mistakes, not obviously wrong answers
 - CRITICAL: Exactly ONE of the four options (A/B/C/D) must be correct. Verify each question has one and only one defensibly correct answer before including it
 - Ensure the scenario contains all facts needed to answer every question — do not require knowledge not present in the scenario or covered topics
-- For calculation questions, double-check the arithmetic: work through the calculation step by step and verify the correct option matches
+- For calculation questions, use this MANDATORY verification process:
+  Step 1: Write out every arithmetic step explicitly (e.g., net profit × 0.9235 = SE income; SE income × 0.153 = SE tax)
+  Step 2: Compute the exact numeric result to the nearest dollar using full decimal precision through all intermediate steps
+  Step 3: Place that exact computed result as one of the four answer options
+  Step 4: Set the "correct" field to the letter (A/B/C/D) whose option text contains that exact computed number
+  Step 5: Re-read the option text for the letter you chose and confirm it matches your computed result before finalizing
 ${errorContext ? `- Address these known weak areas: ${errorContext}` : ''}
 
 Return ONLY a valid JSON object (no markdown, no explanation):
@@ -152,7 +157,12 @@ Rules:
 - Exactly ONE option must be correct — verify before including
 - Wrong options must represent common mistakes or traps, not obviously wrong answers
 - Include specific ${TAX_YEAR} thresholds, form numbers, and percentages where relevant
-- For calculation questions, verify arithmetic step by step
+- For calculation questions, use this MANDATORY verification process:
+  Step 1: Write out every arithmetic step explicitly
+  Step 2: Compute the exact numeric result to the nearest dollar using full decimal precision throughout
+  Step 3: Place that exact computed result as one of the four answer options
+  Step 4: Set the "correct" field to the letter whose option text contains that exact computed number
+  Step 5: Re-read the chosen option text and confirm it matches before finalizing
 - Do NOT repeat topics — spread questions across all completed topics
 
 Return ONLY a valid JSON object (no markdown, no explanation):

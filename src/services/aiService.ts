@@ -25,13 +25,14 @@ type TaskType = 'morningBrief' | 'mindMap' | 'ankiCards' | 'mcq' | 'categorizeEr
 function resolveModel(config: AIConfig, task: TaskType): string {
   if (config.provider !== 'claude') return config.model;
 
-  // Smart Opus Hybrid: Opus for complex generation, Haiku for categorization/MCQ
+  // Smart Opus Hybrid: Opus for complex generation, Sonnet for MCQ (math accuracy), Haiku for simple categorization
   switch (task) {
     case 'morningBrief':
     case 'mindMap':
     case 'ankiCards':
       return CLAUDE_OPUS_MODEL;
     case 'mcq':
+      return CLAUDE_SONNET_MODEL; // MCQ needs reliable arithmetic — Haiku makes calculation errors
     case 'categorizeError':
       return CLAUDE_HAIKU_MODEL;
   }
