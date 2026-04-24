@@ -12,11 +12,10 @@ interface SidebarProps {
   toggleTheme: () => void;
 }
 
-const NAV_TABS: { id: ActiveTab; label: string }[] = [
+const BASE_TABS: { id: ActiveTab; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'cards', label: 'Cards' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 function getStatusColor(day: number, currentDay: number, sessions: Session[]): string {
@@ -43,6 +42,14 @@ export default function Sidebar({
     LESSON_PLAN.find(t => t.day === currentDay)?.part ?? 1
   );
 
+  const completedDays = sessions.filter(s => s.locked).length;
+  const mockExamUnlocked = completedDays >= 5;
+  const navTabs: { id: ActiveTab; label: string }[] = [
+    ...BASE_TABS,
+    ...(mockExamUnlocked ? [{ id: 'mock-exam' as ActiveTab, label: 'Mock Exam' }] : []),
+    { id: 'settings', label: 'Settings' },
+  ];
+
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
@@ -53,7 +60,7 @@ export default function Sidebar({
 
       {/* Nav Tabs */}
       <nav className="px-3 py-3 border-b border-th-border space-y-1">
-        {NAV_TABS.map(tab => (
+        {navTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => { onTabChange(tab.id); setMobileOpen(false); }}

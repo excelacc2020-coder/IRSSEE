@@ -127,5 +127,9 @@ export interface MindMapContent {
   traps: string[];
 }
 
-export type ActiveTab = 'today' | 'dashboard' | 'cards' | 'settings';
+export type ActiveTab = 'today' | 'dashboard' | 'cards' | 'mock-exam' | 'settings';
+
+export interface MockExamSet {
+  questions: MCQQuestion[];
+}
 export type TodayPhase = 0 | 1 | 2 | 3 | 4 | 5 | 6;

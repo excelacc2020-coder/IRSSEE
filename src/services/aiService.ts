@@ -1,8 +1,9 @@
-import type { AIProvider, MCQSet, MorningBriefContent, MindMapContent, AnkiCard, ErrorCategory } from '../types';
+import type { AIProvider, MCQSet, MCQQuestion, MorningBriefContent, MindMapContent, AnkiCard, ErrorCategory } from '../types';
 import {
   MORNING_BRIEF_PROMPT,
   MIND_MAP_PROMPT,
   MCQ_PROMPT,
+  MOCK_EXAM_PROMPT,
   ERROR_CATEGORIZATION_PROMPT,
   ANKI_CARDS_PROMPT,
 } from '../constants/prompts';
@@ -243,6 +244,17 @@ export async function generateMCQs(
   const prompt = MCQ_PROMPT(topic, part, errorContext, coveredTopics);
   const raw = await callAI(config, 'mcq', prompt);
   return parseJSON<MCQSet>(raw);
+}
+
+export async function generateMockExam(
+  config: AIConfig,
+  completedTopics: { day: number; topic: string; part: number }[],
+  questionCount: number
+): Promise<MCQQuestion[]> {
+  const prompt = MOCK_EXAM_PROMPT(completedTopics, questionCount);
+  const raw = await callAI(config, 'mcq', prompt);
+  const result = parseJSON<{ questions: MCQQuestion[] }>(raw);
+  return result.questions;
 }
 
 export async function categorizeError(

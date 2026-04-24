@@ -131,6 +131,50 @@ Return ONLY a JSON object (no markdown):
 {"category": "rule_gap|calculation_error|exception_missed|trap_fallen", "reasoning": "one sentence explanation"}
 `.trim();
 
+export const MOCK_EXAM_PROMPT = (completedTopics: { day: number; topic: string; part: number }[], questionCount: number) => `
+You are an expert IRS SEE exam question writer.
+
+Tax Year: **${TAX_YEAR}** — All dollar amounts, thresholds, and phase-outs must use ${TAX_YEAR} figures.
+
+The student has completed the following topics:
+${completedTopics.map(t => `Day ${t.day} (Part ${t.part}): ${t.topic}`).join('\n')}
+
+Generate exactly ${questionCount} standalone multiple-choice questions that simulate a real IRS SEE exam. These are INDEPENDENT questions — each stands alone with no shared scenario. However, you may embed a brief 1-2 sentence client situation directly in the question when needed.
+
+Draw questions evenly across the completed topics. Use all four question types:
+- direct: "What is the maximum..."
+- incomplete: "The deduction for X is ________."
+- except: "All of the following are required EXCEPT:"
+- scenario: A 1-2 sentence client fact pattern embedded in the question itself
+
+Rules:
+- All 4 options must be plausible with real ${TAX_YEAR} figures and rules
+- Exactly ONE option must be correct — verify before including
+- Wrong options must represent common mistakes or traps, not obviously wrong answers
+- Include specific ${TAX_YEAR} thresholds, form numbers, and percentages where relevant
+- For calculation questions, verify arithmetic step by step
+- Do NOT repeat topics — spread questions across all completed topics
+
+Return ONLY a valid JSON object (no markdown, no explanation):
+{
+  "questions": [
+    {
+      "id": 1,
+      "type": "direct|incomplete|except|scenario",
+      "question": "Question text...",
+      "options": {
+        "A": "option text",
+        "B": "option text",
+        "C": "option text",
+        "D": "option text"
+      },
+      "correct": "A|B|C|D",
+      "explanation": "Why the correct answer is right and the others are wrong, citing ${TAX_YEAR} rules"
+    }
+  ]
+}
+`.trim();
+
 export const ANKI_CARDS_PROMPT = (topic: string, wrongQuestions: string[], studyNotes: string) => `
 You are creating Anki flashcards for IRS SEE exam prep.
 

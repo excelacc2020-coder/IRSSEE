@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from './hooks/useTheme';
 import Sidebar from './components/Sidebar';
 import TodayTab from './components/tabs/TodayTab';
 import DashboardTab from './components/tabs/DashboardTab';
 import CardsTab from './components/tabs/CardsTab';
+import MockExamTab from './components/tabs/MockExamTab';
 import SettingsTab from './components/tabs/SettingsTab';
 import AuthGate from './components/AuthGate';
 import { getSession, onAuthStateChange } from './services/authService';
@@ -18,6 +19,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [viewingDay, setViewingDay] = useState<number>(1);
+  const dayInitialized = useRef(false);
 
   // Load user data
   const loadUserData = useCallback(async (userId: string) => {
@@ -29,9 +31,15 @@ export default function App() {
 
     if (fetchedSettings) {
       setSettings(fetchedSettings);
-      setViewingDay(fetchedSettings.current_day);
-    } else {
+      // Only set viewingDay on first load — subsequent reloads (auth token
+      // refreshes, refreshData calls) must not reset a user-selected day.
+      if (!dayInitialized.current) {
+        setViewingDay(fetchedSettings.current_day);
+        dayInitialized.current = true;
+      }
+    } else if (!dayInitialized.current) {
       setViewingDay(1);
+      dayInitialized.current = true;
     }
   }, []);
 
@@ -44,6 +52,7 @@ export default function App() {
 
     // Listen for auth changes
     const { data: { subscription } } = onAuthStateChange((sessionUser) => {
+      if (!sessionUser) dayInitialized.current = false; // reset on logout
       setUser(sessionUser);
       setLoadingAuth(false);
     });
@@ -101,6 +110,9 @@ export default function App() {
         )}
         {activeTab === 'cards' && (
           <CardsTab user={user} />
+        )}
+        {activeTab === 'mock-exam' && (
+          <MockExamTab user={user} sessions={sessions} settings={settings} />
         )}
         {activeTab === 'settings' && (
           <SettingsTab
