@@ -77,34 +77,39 @@ Do NOT test knowledge from topics the student has not yet covered. All questions
 
 Create ONE realistic, complex client scenario (150-200 words) set in tax year ${TAX_YEAR}, involving a real person or business with multiple financial events, edge cases, and potential exam traps related to this topic. Give the client a name and specific dollar amounts using ${TAX_YEAR} values.
 
-Then write exactly 6 multiple-choice questions that ALL reference this specific scenario. Questions should probe different aspects and require reading the scenario carefully. Use a mix of question types across the 6 questions:
-- At least 2 questions that calculate or determine a specific dollar amount using ${TAX_YEAR} figures
+Then write exactly 6 multiple-choice questions that ALL reference this specific scenario. Use a mix of question types:
+- At least 2 calculation questions (determine a specific dollar amount using ${TAX_YEAR} figures)
 - At least 1 "All of the following EXCEPT" question
 - At least 1 question about a trap or exception hidden in the scenario
-- Questions should be answerable from the scenario details provided
 
-Rules for all questions:
+Rules for ALL questions:
 - All 4 options must be plausible and specific (real ${TAX_YEAR} dollar amounts, real rules)
-- Include specific ${TAX_YEAR} thresholds, percentages, form numbers where relevant
-- Wrong options should represent common mistakes, not obviously wrong answers
-- CRITICAL: Exactly ONE of the four options (A/B/C/D) must be correct. Verify each question has one and only one defensibly correct answer before including it
-- Ensure the scenario contains all facts needed to answer every question — do not require knowledge not present in the scenario or covered topics
-- For calculation questions, use this MANDATORY verification process:
-  Step 1: Write out every arithmetic step explicitly (e.g., net profit × 0.9235 = SE income; SE income × 0.153 = SE tax)
-  Step 2: Compute the exact numeric result to the nearest dollar using full decimal precision through all intermediate steps
-  Step 3: Place that exact computed result as one of the four answer options
-  Step 4: Set the "correct" field to the letter (A/B/C/D) whose option text contains that exact computed number
-  Step 5: Re-read the option text for the letter you chose and confirm it matches your computed result before finalizing
+- Wrong options represent common mistakes, not obviously wrong answers
+- CRITICAL: Exactly ONE of the four options (A/B/C/D) must be correct
+- Ensure the scenario contains all facts needed to answer every question
 ${errorContext ? `- Address these known weak areas: ${errorContext}` : ''}
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+MANDATORY WORKFLOW — follow this exact order for EVERY question, no exceptions:
+  STEP 1 — COMPUTE FIRST: Calculate the correct answer BEFORE writing any answer options.
+           Show every arithmetic step in the "calc" field.
+           Example for net profit: "94000+6800=100800; 3200+1800+3600+450+2200=11250; 100800-11250=89550".
+           Example for SE tax: "55900*0.9235=51624.65; 51624.65*0.153=7898.57 rounds to 7899".
+           For non-calculation questions write "calc": "N/A".
+  STEP 2 — BUILD OPTIONS: Write options A, B, C, D so that EXACTLY ONE option equals the Step 1 result.
+           The other three are plausible wrong answers (missed a deduction, wrong rate, used gross instead of net, etc.).
+  STEP 3 — SET CORRECT: Set "correct" to the letter whose option text matches the Step 1 result.
+  STEP 4 — FINAL CHECK: Re-read the option you marked correct. Confirm the dollar amount matches Step 1 exactly.
+           If it does not match, fix the option text to match Step 1 — NEVER change the answer to fit a wrong option.
+
+Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 {
-  "scenario": "Full scenario text, 150-200 words, describing the client situation with specific ${TAX_YEAR} numbers...",
+  "scenario": "Full scenario text, 150-200 words with specific ${TAX_YEAR} numbers...",
   "questions": [
     {
       "id": 1,
       "type": "direct|incomplete|except|scenario",
-      "question": "Based on the scenario, what is... / Which of the following... / [question referencing the scenario]",
+      "calc": "Arithmetic scratchpad — show every step before writing options. E.g. '94000+6800=100800; 3200+1800+3600+450+2200=11250; 100800-11250=89550'. Write N/A for non-calculation questions.",
+      "question": "Question text referencing the scenario",
       "options": {
         "A": "option text",
         "B": "option text",
@@ -112,7 +117,7 @@ Return ONLY a valid JSON object (no markdown, no explanation):
         "D": "option text"
       },
       "correct": "A|B|C|D",
-      "explanation": "Why the correct answer is right and why each wrong answer is wrong, with reference to the ${TAX_YEAR} rules and scenario facts"
+      "explanation": "Step-by-step: show the correct calculation, then explain why each wrong option is wrong and what mistake it represents"
     }
   ]
 }
@@ -144,33 +149,38 @@ Tax Year: **${TAX_YEAR}** — All dollar amounts, thresholds, and phase-outs mus
 The student has completed the following topics:
 ${completedTopics.map(t => `Day ${t.day} (Part ${t.part}): ${t.topic}`).join('\n')}
 
-Generate exactly ${questionCount} standalone multiple-choice questions that simulate a real IRS SEE exam. These are INDEPENDENT questions — each stands alone with no shared scenario. However, you may embed a brief 1-2 sentence client situation directly in the question when needed.
-
-Draw questions evenly across the completed topics. Use all four question types:
+Generate exactly ${questionCount} standalone multiple-choice questions simulating a real IRS SEE exam.
+Each question stands alone — no shared scenario. Embed a brief 1-2 sentence client situation in the question when needed.
+Draw questions evenly across all completed topics. Use all four question types:
 - direct: "What is the maximum..."
 - incomplete: "The deduction for X is ________."
 - except: "All of the following are required EXCEPT:"
-- scenario: A 1-2 sentence client fact pattern embedded in the question itself
+- scenario: A 1-2 sentence client fact pattern in the question itself
 
-Rules:
+Rules for ALL questions:
 - All 4 options must be plausible with real ${TAX_YEAR} figures and rules
-- Exactly ONE option must be correct — verify before including
-- Wrong options must represent common mistakes or traps, not obviously wrong answers
+- Exactly ONE option must be correct
+- Wrong options represent common mistakes or traps, not obviously wrong answers
 - Include specific ${TAX_YEAR} thresholds, form numbers, and percentages where relevant
-- For calculation questions, use this MANDATORY verification process:
-  Step 1: Write out every arithmetic step explicitly
-  Step 2: Compute the exact numeric result to the nearest dollar using full decimal precision throughout
-  Step 3: Place that exact computed result as one of the four answer options
-  Step 4: Set the "correct" field to the letter whose option text contains that exact computed number
-  Step 5: Re-read the chosen option text and confirm it matches before finalizing
 - Do NOT repeat topics — spread questions across all completed topics
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+MANDATORY WORKFLOW — follow this order for EVERY question, no exceptions:
+  STEP 1 — COMPUTE FIRST: Before writing any answer options, calculate the correct answer.
+           Show every arithmetic step in the "calc" field (e.g. "55900*0.9235=51624.65; 51624.65*0.153=7898.57≈7899").
+           For non-calculation questions write "calc": "N/A".
+  STEP 2 — BUILD OPTIONS: Write options A, B, C, D. One option MUST be the exact number from Step 1.
+           The other three options are plausible wrong answers (wrong rate, missed deduction, etc.).
+  STEP 3 — SET CORRECT: Set "correct" to whichever letter holds the Step 1 result.
+  STEP 4 — FINAL CHECK: Re-read the option you marked correct and confirm it matches Step 1 exactly.
+           If it does not match, fix that option's text — never change the answer to fit a wrong option.
+
+Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 {
   "questions": [
     {
       "id": 1,
       "type": "direct|incomplete|except|scenario",
+      "calc": "Show every arithmetic step before the options. E.g. '55900*0.9235=51624.65; 51624.65*0.153=7898.57≈7899'. Write N/A for non-calculation questions.",
       "question": "Question text...",
       "options": {
         "A": "option text",
@@ -179,7 +189,7 @@ Return ONLY a valid JSON object (no markdown, no explanation):
         "D": "option text"
       },
       "correct": "A|B|C|D",
-      "explanation": "Why the correct answer is right and the others are wrong, citing ${TAX_YEAR} rules"
+      "explanation": "Step-by-step: show the correct calculation, then explain why each wrong option is wrong and what mistake it represents"
     }
   ]
 }
