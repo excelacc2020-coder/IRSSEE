@@ -56,7 +56,7 @@ export default function VideoLinks({ topic, onContinue }: VideoLinksProps) {
                 href={topic.videoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-3 p-3 bg-red-950/30 border border-red-900/50 hover:bg-red-950/50 rounded-lg transition-colors group"
+                className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-950/50 rounded-lg transition-colors group"
               >
                 <span className="text-red-400 flex-shrink-0 text-xl leading-none mt-0.5">▶</span>
                 <div className="flex-1 min-w-0">

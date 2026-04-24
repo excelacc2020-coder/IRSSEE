@@ -77,10 +77,10 @@ export default function DashboardTab({ user }: DashboardTabProps) {
       {errors.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { key: 'rule_gap', label: 'Rule Gap', color: 'border-red-800 bg-red-950/20 text-red-300' },
-            { key: 'calculation_error', label: 'Calc Error', color: 'border-orange-800 bg-orange-950/20 text-orange-300' },
-            { key: 'exception_missed', label: 'Exception', color: 'border-yellow-800 bg-yellow-950/20 text-yellow-300' },
-            { key: 'trap_fallen', label: 'Trap', color: 'border-purple-800 bg-purple-950/20 text-purple-300' },
+            { key: 'rule_gap', label: 'Rule Gap', color: 'border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300' },
+            { key: 'calculation_error', label: 'Calc Error', color: 'border-orange-300 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300' },
+            { key: 'exception_missed', label: 'Exception', color: 'border-yellow-300 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20 text-yellow-700 dark:text-yellow-300' },
+            { key: 'trap_fallen', label: 'Trap', color: 'border-purple-300 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300' },
           ].map(({ key, label, color }) => (
             <div key={key} className={`border rounded-xl p-4 text-center ${color}`}>
               <div className="text-2xl font-bold">{errorCounts[key] ?? 0}</div>

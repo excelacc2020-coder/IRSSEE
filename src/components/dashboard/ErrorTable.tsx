@@ -6,10 +6,10 @@ interface ErrorTableProps {
 }
 
 const CATEGORY_CONFIG: Record<ErrorCategory, { label: string; color: string }> = {
-  rule_gap: { label: 'Rule Gap', color: 'bg-red-900/40 text-red-300 border-red-800' },
-  calculation_error: { label: 'Calculation Error', color: 'bg-orange-900/40 text-orange-300 border-orange-800' },
-  exception_missed: { label: 'Exception Missed', color: 'bg-yellow-900/40 text-yellow-300 border-yellow-800' },
-  trap_fallen: { label: 'Trap Fallen', color: 'bg-purple-900/40 text-purple-300 border-purple-800' },
+  rule_gap: { label: 'Rule Gap', color: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-300 dark:border-red-800' },
+  calculation_error: { label: 'Calculation Error', color: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-800' },
+  exception_missed: { label: 'Exception Missed', color: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800' },
+  trap_fallen: { label: 'Trap Fallen', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800' },
 };
 
 const ALL_CATEGORIES: ErrorCategory[] = ['rule_gap', 'calculation_error', 'exception_missed', 'trap_fallen'];
@@ -100,12 +100,12 @@ export default function ErrorTable({ errors }: ErrorTableProps) {
               {expanded === err.id && (
                 <div className="px-4 pb-4 border-t border-th-border pt-3 space-y-3">
                   <div className="grid md:grid-cols-2 gap-3">
-                    <div className="bg-red-950/20 border border-red-900/50 rounded-lg p-3">
+                    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg p-3">
                       <p className="text-xs text-red-600 dark:text-red-400 mb-1">Your Answer</p>
                       <p className="text-sm text-th-text-secondary">{err.user_answer}</p>
                     </div>
-                    <div className="bg-green-950/20 border border-green-900/50 rounded-lg p-3">
-                      <p className="text-xs text-green-600 dark:text-green-400 mb-1">Correct Answer</p>
+                    <div className="bg-emerald-50 dark:bg-green-950/20 border border-emerald-200 dark:border-green-900/50 rounded-lg p-3">
+                      <p className="text-xs text-emerald-600 dark:text-green-400 mb-1">Correct Answer</p>
                       <p className="text-sm text-th-text-secondary">{err.correct_answer}</p>
                     </div>
                   </div>

@@ -11,12 +11,12 @@ interface MindMapScaffoldProps {
   onContinue: () => void;
 }
 
-const REFERENCE_CONFIG: { key: keyof Omit<MindMapContent, 'decisionFlow'>; label: string; color: string; emptyLabel: string }[] = [
-  { key: 'rules', label: 'Core Rules', color: 'border-blue-700 bg-blue-950/20 text-blue-300', emptyLabel: 'No rules identified' },
-  { key: 'exceptions', label: 'Exceptions', color: 'border-orange-700 bg-orange-950/20 text-orange-300', emptyLabel: 'No exceptions identified' },
-  { key: 'forms', label: 'Forms & Schedules', color: 'border-teal-700 bg-teal-950/20 text-teal-300', emptyLabel: 'No forms identified' },
-  { key: 'calculations', label: 'Calculations', color: 'border-purple-700 bg-purple-950/20 text-purple-300', emptyLabel: 'No calculations identified' },
-  { key: 'traps', label: 'Exam Traps', color: 'border-red-700 bg-red-950/20 text-red-300', emptyLabel: 'No traps identified' },
+const REFERENCE_CONFIG: { key: keyof Omit<MindMapContent, 'decisionFlow'>; label: string; bgColor: string; borderColor: string; headingColor: string; emptyLabel: string }[] = [
+  { key: 'rules', label: 'Core Rules', bgColor: 'bg-blue-50 dark:bg-blue-950/20', borderColor: 'border-blue-300 dark:border-blue-700', headingColor: 'text-blue-700 dark:text-blue-300', emptyLabel: 'No rules identified' },
+  { key: 'exceptions', label: 'Exceptions', bgColor: 'bg-orange-50 dark:bg-orange-950/20', borderColor: 'border-orange-300 dark:border-orange-700', headingColor: 'text-orange-700 dark:text-orange-300', emptyLabel: 'No exceptions identified' },
+  { key: 'forms', label: 'Forms & Schedules', bgColor: 'bg-teal-50 dark:bg-teal-950/20', borderColor: 'border-teal-300 dark:border-teal-700', headingColor: 'text-teal-700 dark:text-teal-300', emptyLabel: 'No forms identified' },
+  { key: 'calculations', label: 'Calculations', bgColor: 'bg-purple-50 dark:bg-purple-950/20', borderColor: 'border-purple-300 dark:border-purple-700', headingColor: 'text-purple-700 dark:text-purple-300', emptyLabel: 'No calculations identified' },
+  { key: 'traps', label: 'Exam Traps', bgColor: 'bg-red-50 dark:bg-red-950/20', borderColor: 'border-red-300 dark:border-red-700', headingColor: 'text-red-700 dark:text-red-300', emptyLabel: 'No traps identified' },
 ];
 
 export default function MindMapScaffold({ topic, session, settings, onComplete, onContinue }: MindMapScaffoldProps) {
@@ -122,13 +122,13 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
                         {node.node}
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                        <div className="flex-1 bg-yellow-950/30 border border-yellow-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-yellow-600 font-medium block mb-0.5">Decision</span>
-                          <span className="text-sm text-yellow-200 leading-snug">{node.question}</span>
+                        <div className="flex-1 bg-amber-50 dark:bg-yellow-950/30 border border-amber-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
+                          <span className="text-xs text-amber-700 dark:text-yellow-500 font-medium block mb-0.5">Decision</span>
+                          <span className="text-sm text-amber-900 dark:text-yellow-100 leading-snug">{node.question}</span>
                         </div>
-                        <div className="flex-1 bg-green-950/30 border border-green-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-green-600 font-medium block mb-0.5">Action</span>
-                          <span className="text-sm text-green-200 leading-snug">{node.action}</span>
+                        <div className="flex-1 bg-emerald-50 dark:bg-green-950/30 border border-emerald-200 dark:border-green-800/50 rounded-lg px-3 py-2">
+                          <span className="text-xs text-emerald-700 dark:text-green-500 font-medium block mb-0.5">Action</span>
+                          <span className="text-sm text-emerald-900 dark:text-green-100 leading-snug">{node.action}</span>
                         </div>
                       </div>
                     </div>
@@ -142,11 +142,11 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
           <div className="mb-4">
             <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-3">Reference Framework</h4>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {REFERENCE_CONFIG.map(({ key, label, color, emptyLabel }) => {
+              {REFERENCE_CONFIG.map(({ key, label, bgColor, borderColor, headingColor, emptyLabel }) => {
                 const items = mindMap[key] as string[] | undefined;
                 return (
-                  <div key={key} className={`border rounded-xl p-4 ${color.split(' ').slice(0, 2).join(' ')} bg-th-card/50`}>
-                    <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${color.split(' ')[2]}`}>{label}</h5>
+                  <div key={key} className={`border rounded-xl p-4 ${bgColor} ${borderColor}`}>
+                    <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${headingColor}`}>{label}</h5>
                     {items && items.length > 0 ? (
                       <ul className="space-y-1.5">
                         {items.map((item, i) => (

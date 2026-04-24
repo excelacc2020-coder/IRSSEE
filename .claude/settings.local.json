@@ -43,7 +43,11 @@
       "Bash(vercel build:*)",
       "Bash(export PATH=\"/c/Users/mhasn/AppData/Roaming/npm:$PATH:/c/Program Files/nodejs\")",
       "Bash(vercel pull:*)",
-      "Bash(vercel deploy:*)"
+      "Bash(vercel deploy:*)",
+      "Bash(python scripts/office/unpack.py \"C:/Users/mhasn/Downloads/Test.docx\" /tmp/test_docx_unpacked/)",
+      "Bash(pandoc \"C:/Users/mhasn/Downloads/Test.docx\" -o /tmp/test_output.md)",
+      "Read(//tmp/**)",
+      "Bash(npm list:*)"
     ]
   }
 }
