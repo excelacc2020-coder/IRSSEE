@@ -118,6 +118,18 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
         )}
 
         <div className="space-y-4">
+          {/* Overview — real-world context paragraph */}
+          {brief.overview && (
+            <div className="border border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl p-5">
+              <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-2">
+                Why This Matters
+              </h4>
+              <p className="text-sm text-th-text-secondary leading-relaxed">
+                {brief.overview}
+              </p>
+            </div>
+          )}
+
           {/* Sections — one card per subtopic group with items */}
           {(brief.sections ?? []).map((section, si) => (
             <div key={si} className="border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 rounded-xl p-5">

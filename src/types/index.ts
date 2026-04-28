@@ -106,6 +106,7 @@ export interface BriefSection {
 }
 
 export interface MorningBriefContent {
+  overview: string;
   sections: BriefSection[];
   connections: string;
   examTraps: string;
