@@ -131,14 +131,18 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
   return data.candidates[0]?.content?.parts[0]?.text ?? '';
 }
 
-// ─── Core dispatch ───────────────────────────────────────────────────────────
-
-// Morning brief and mind map need more tokens for structured nested JSON output
-const HIGH_TOKEN_TASKS: TaskType[] = ['morningBrief', 'mindMap'];
+// Token budgets per task — expanded prompts produce much longer structured JSON
+const TASK_TOKEN_LIMITS: Record<TaskType, number> = {
+  morningBrief: 12288,  // many sections with detailed items + overview
+  mindMap:      12288,  // 6-8 decision steps + 5 reference lists
+  mcq:          12288,  // 200-300 word scenario + 6 questions with comprehensive explanations
+  ankiCards:     8192,  // 8-12 detailed cards
+  categorizeError: 1024, // single short JSON object
+};
 
 async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise<string> {
   const model = resolveModel(config, task);
-  const maxTokens = HIGH_TOKEN_TASKS.includes(task) ? 8192 : 4096;
+  const maxTokens = TASK_TOKEN_LIMITS[task];
 
   switch (config.provider) {
     case 'claude':
@@ -181,10 +185,22 @@ function parseJSON<T>(raw: string): T {
  * Strips the last incomplete value and closes all open brackets/braces.
  */
 function repairTruncatedJSON(json: string): string {
-  // Remove trailing incomplete string value (truncated mid-string)
-  let repaired = json.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/, '');
+  // Close any unterminated string (odd number of unescaped quotes)
+  let quoteCount = 0;
+  for (let i = 0; i < json.length; i++) {
+    if (json[i] === '"' && (i === 0 || json[i - 1] !== '\\')) quoteCount++;
+  }
+  let repaired = json;
+  if (quoteCount % 2 !== 0) repaired += '"';
+
+  // Remove trailing incomplete key-value pair (truncated mid-string value)
+  repaired = repaired.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*"?\s*$/, '');
   // Remove trailing incomplete key
-  repaired = repaired.replace(/,\s*"[^"]*$/, '');
+  repaired = repaired.replace(/,\s*"[^"]*"\s*$/, '');
+  // Remove trailing incomplete number or boolean
+  repaired = repaired.replace(/,\s*"[^"]*"\s*:\s*[\d.a-z]+\s*$/, '');
+  // Remove trailing incomplete object/array element
+  repaired = repaired.replace(/,\s*\{[^}]*$/, '');
   // Remove dangling comma
   repaired = repaired.replace(/,\s*$/, '');
 
