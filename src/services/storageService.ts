@@ -37,8 +37,14 @@ export async function getUserSettings(userId: string): Promise<UserSettings | nu
   }
 
   if (data) {
-    lsSet(`settings_${userId}`, data);
-    return data as UserSettings;
+    const remote = data as UserSettings;
+    // If localStorage has a newer write (e.g. upsert just completed locally but
+    // Supabase hasn't persisted yet), prefer the local version to avoid reverting.
+    if (cached?.updated_at && remote.updated_at && cached.updated_at > remote.updated_at) {
+      return cached;
+    }
+    lsSet(`settings_${userId}`, remote);
+    return remote;
   }
   return cached;
 }
@@ -73,17 +79,23 @@ export async function upsertUserSettings(
     updated_at: merged.updated_at,
   };
 
-  // Best-effort Supabase sync
-  void Promise.resolve(
-    supabase
+  // Await Supabase sync so the DB is updated before the caller triggers a re-fetch
+  try {
+    const { data, error } = await supabase
       .from('user_settings')
       .upsert(cleanSettings, { onConflict: 'user_id' })
       .select()
-      .single()
-  ).then(({ data, error }) => { 
-    if (error) console.error('upsertUserSettings DB error:', error);
-    if (data) lsSet(`settings_${userId}`, data); 
-  }).catch((err) => { console.error('upsertUserSettings network error:', err); });
+      .single();
+
+    if (error) {
+      console.error('upsertUserSettings DB error:', error);
+    } else if (data) {
+      lsSet(`settings_${userId}`, data);
+    }
+  } catch (err) {
+    console.error('upsertUserSettings network error:', err);
+    // localStorage already has the merged data — works offline
+  }
 }
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
