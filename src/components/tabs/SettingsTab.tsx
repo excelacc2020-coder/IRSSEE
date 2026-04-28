@@ -30,7 +30,7 @@ const PROVIDERS: { id: AIProvider; label: string; models: string[] }[] = [
   {
     id: 'gemini',
     label: 'Google Gemini',
-    models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
   },
 ];
 
@@ -42,6 +42,7 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'fail' | null>(null);
+  const [testError, setTestError] = useState<string>('');
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -92,8 +93,10 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
   async function handleTestConnection() {
     setTesting(true);
     setTestResult(null);
-    const ok = await testConnection({ provider, apiKey, model });
-    setTestResult(ok ? 'success' : 'fail');
+    setTestError('');
+    const result = await testConnection({ provider, apiKey, model });
+    setTestResult(result.ok ? 'success' : 'fail');
+    if (!result.ok && result.error) setTestError(result.error);
     setTesting(false);
   }
 
@@ -190,7 +193,12 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
               <span className="text-sm text-green-600 dark:text-green-400">Connected</span>
             )}
             {testResult === 'fail' && (
-              <span className="text-sm text-red-600 dark:text-red-400">Connection failed — check your API key</span>
+              <div className="flex flex-col">
+                <span className="text-sm text-red-600 dark:text-red-400">Connection failed</span>
+                {testError && (
+                  <span className="text-xs text-red-500/80 dark:text-red-400/70 mt-0.5 max-w-xs break-all">{testError}</span>
+                )}
+              </div>
             )}
           </div>
         </div>

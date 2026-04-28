@@ -284,15 +284,16 @@ export async function generateAnkiCards(
   return cards.map(c => ({ ...c, day, topic }));
 }
 
-export async function testConnection(config: AIConfig): Promise<boolean> {
+export async function testConnection(config: AIConfig): Promise<{ ok: boolean; error?: string }> {
   try {
     const result = await callAI(
       config,
       'categorizeError',
       'Reply with exactly the word: ok'
     );
-    return result.toLowerCase().includes('ok');
-  } catch {
-    return false;
+    return { ok: result.toLowerCase().includes('ok') };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
   }
 }
