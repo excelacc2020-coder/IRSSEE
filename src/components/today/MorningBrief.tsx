@@ -141,21 +141,45 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
                   <div key={ii} className="bg-white/60 dark:bg-blue-900/20 rounded-lg p-3">
                     <p className="text-sm font-medium text-th-text mb-1.5">{item.label}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      <div>
-                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Rule: </span>
-                        <span className="text-th-text-secondary">{item.rule}</span>
+                      <div className="col-span-1 sm:col-span-2">
+                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Rule: </div>
+                        {Array.isArray(item.rule) ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {item.rule.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="text-th-text-secondary">{item.rule}</div>
+                        )}
+                      </div>
+                      <div className="col-span-1 sm:col-span-2">
+                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Threshold: </div>
+                        {Array.isArray(item.threshold) ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {item.threshold.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="text-th-text-secondary">{item.threshold}</div>
+                        )}
                       </div>
                       <div>
-                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Threshold: </span>
-                        <span className="text-th-text-secondary">{item.threshold}</span>
+                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Form: </div>
+                        {Array.isArray(item.form) ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {item.form.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="text-th-text-secondary">{item.form}</div>
+                        )}
                       </div>
                       <div>
-                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Form: </span>
-                        <span className="text-th-text-secondary">{item.form}</span>
-                      </div>
-                      <div>
-                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase">Tip: </span>
-                        <span className="text-th-text-muted">{item.tip}</span>
+                        <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Tip: </div>
+                        {Array.isArray(item.tip) ? (
+                          <ul className="list-disc pl-4 space-y-1">
+                            {item.tip.map((pt, i) => <li key={i} className="text-th-text-muted">{pt}</li>)}
+                          </ul>
+                        ) : (
+                          <div className="text-th-text-muted">{item.tip}</div>
+                        )}
                       </div>
                     </div>
                   </div>

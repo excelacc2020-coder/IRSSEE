@@ -94,10 +94,10 @@ export interface UserSettings {
 
 export interface BriefSectionItem {
   label: string;
-  rule: string;
-  threshold: string;
-  form: string;
-  tip: string;
+  rule: string | string[];
+  threshold: string | string[];
+  form: string | string[];
+  tip: string | string[];
 }
 
 export interface BriefSection {

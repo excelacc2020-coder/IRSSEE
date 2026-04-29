@@ -23,17 +23,17 @@ ${errorBridgeContext ? `Recent errors to address in the Error Bridge section:\n$
 
 Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 {
-  "overview": "A 3-5 sentence paragraph explaining what this topic covers in plain English, why it matters in real-world tax practice, and what real-life situations trigger these rules. For example, explain why a tax professional encounters this topic, what client situations involve it, and what practical consequences arise from getting it wrong. This paragraph should give the student context BEFORE diving into the technical rules below.",
+  "overview": "A 3-5 sentence paragraph explaining what this topic covers in plain English, why it matters in real-world tax practice, and what real-life situations trigger these rules.",
   "sections": [
     {
       "heading": "Subtopic heading (e.g., Filing Status)",
       "items": [
         {
           "label": "Specific item name (e.g., Head of Household)",
-          "rule": "Detailed rule explanation with ${TAX_YEAR} figures — 2-4 sentences covering the core rule, how it works, and when it applies",
-          "threshold": "ALL relevant ${TAX_YEAR} dollar amounts, phase-out ranges, income limits, and percentages",
-          "form": "IRS form/schedule and specific line numbers where applicable",
-          "tip": "Exam trap with enough detail to explain WHY it's tricky and HOW to avoid it"
+          "rule": ["Bullet point 1 — core rule or definition with ${TAX_YEAR} figure", "Bullet point 2 — additional rule detail or condition", "Bullet point 3 — further detail if needed"],
+          "threshold": ["Bullet 1 — specific ${TAX_YEAR} dollar amount or limit", "Bullet 2 — phase-out range or income limit", "Bullet 3 — additional threshold if applicable"],
+          "form": ["Form XXXX — purpose and key line number", "Schedule X — when required"],
+          "tip": ["Bullet 1 — exam trap with explanation of WHY it tricks students and how to avoid it", "Bullet 2 — additional trap or memorization tip if applicable"]
         }
       ]
     }
