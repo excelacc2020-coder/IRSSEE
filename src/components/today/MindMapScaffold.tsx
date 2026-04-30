@@ -100,7 +100,7 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
           <div className="mb-6">
             <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-4">Decision Flow</h4>
             <div className="relative">
-              {(mindMap.decisionFlow ?? []).map((node, i) => (
+              {(Array.isArray(mindMap.decisionFlow) ? mindMap.decisionFlow : []).map((node, i) => (
                 <div key={i}>
                   {/* Flow node */}
                   <div className="flex gap-3">
@@ -119,16 +119,20 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
                       i < (mindMap.decisionFlow ?? []).length - 1 ? 'mb-2' : ''
                     }`}>
                       <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
-                        {node.node}
+                        {typeof node.node === 'string' ? node.node : JSON.stringify(node.node)}
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3 mt-2">
                         <div className="flex-1 bg-amber-50 dark:bg-yellow-950/30 border border-amber-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
                           <span className="text-xs text-amber-700 dark:text-yellow-500 font-medium block mb-0.5">Decision</span>
-                          <span className="text-sm text-amber-900 dark:text-yellow-100 leading-snug">{node.question}</span>
+                          <span className="text-sm text-amber-900 dark:text-yellow-100 leading-snug">
+                            {typeof node.question === 'string' ? node.question : JSON.stringify(node.question)}
+                          </span>
                         </div>
                         <div className="flex-1 bg-emerald-50 dark:bg-green-950/30 border border-emerald-200 dark:border-green-800/50 rounded-lg px-3 py-2">
                           <span className="text-xs text-emerald-700 dark:text-green-500 font-medium block mb-0.5">Action</span>
-                          <span className="text-sm text-emerald-900 dark:text-green-100 leading-snug">{node.action}</span>
+                          <span className="text-sm text-emerald-900 dark:text-green-100 leading-snug">
+                            {typeof node.action === 'string' ? node.action : JSON.stringify(node.action)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -143,16 +147,17 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
             <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-3">Reference Framework</h4>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {REFERENCE_CONFIG.map(({ key, label, bgColor, borderColor, headingColor, emptyLabel }) => {
-                const items = mindMap[key] as string[] | undefined;
+                const rawItems = mindMap[key];
+                const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? [rawItems] : []);
                 return (
                   <div key={key} className={`border rounded-xl p-4 ${bgColor} ${borderColor}`}>
                     <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${headingColor}`}>{label}</h5>
-                    {items && items.length > 0 ? (
+                    {items.length > 0 ? (
                       <ul className="space-y-1.5">
                         {items.map((item, i) => (
                           <li key={i} className="flex items-start gap-2 text-xs text-th-text-secondary">
                             <span className="text-th-text-faint flex-shrink-0 mt-0.5">·</span>
-                            <span className="leading-snug">{item}</span>
+                            <span className="leading-snug">{typeof item === 'string' ? item : JSON.stringify(item)}</span>
                           </li>
                         ))}
                       </ul>

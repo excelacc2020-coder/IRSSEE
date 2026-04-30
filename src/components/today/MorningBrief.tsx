@@ -11,6 +11,25 @@ interface MorningBriefProps {
   onComplete: (content: MorningBriefContent) => void;
 }
 
+function renderSafeStringOrList(content: any, textClass: string) {
+  if (!content) return null;
+  if (Array.isArray(content)) {
+    return (
+      <ul className="list-disc pl-4 space-y-1">
+        {content.map((pt, i) => (
+          <li key={i} className={textClass}>
+            {typeof pt === 'string' ? pt : JSON.stringify(pt)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (typeof content === 'string') {
+    return <div className={textClass}>{content}</div>;
+  }
+  return <div className={textClass}>{JSON.stringify(content)}</div>;
+}
+
 /**
  * Validates that a parsed object matches the current brief format.
  * Returns null for old/incompatible formats so they are discarded.
@@ -124,9 +143,9 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
               <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-2">
                 Why This Matters
               </h4>
-              <p className="text-sm text-th-text-secondary leading-relaxed">
-                {brief.overview}
-              </p>
+              <div className="text-sm text-th-text-secondary leading-relaxed">
+                {renderSafeStringOrList(brief.overview, "text-sm text-th-text-secondary leading-relaxed")}
+              </div>
             </div>
           )}
 
@@ -143,43 +162,19 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
                       <div className="col-span-1 sm:col-span-2">
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Rule: </div>
-                        {Array.isArray(item.rule) ? (
-                          <ul className="list-disc pl-4 space-y-1">
-                            {item.rule.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
-                          </ul>
-                        ) : (
-                          <div className="text-th-text-secondary">{item.rule}</div>
-                        )}
+                        {renderSafeStringOrList(item.rule, "text-th-text-secondary")}
                       </div>
                       <div className="col-span-1 sm:col-span-2">
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Threshold: </div>
-                        {Array.isArray(item.threshold) ? (
-                          <ul className="list-disc pl-4 space-y-1">
-                            {item.threshold.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
-                          </ul>
-                        ) : (
-                          <div className="text-th-text-secondary">{item.threshold}</div>
-                        )}
+                        {renderSafeStringOrList(item.threshold, "text-th-text-secondary")}
                       </div>
                       <div>
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Form: </div>
-                        {Array.isArray(item.form) ? (
-                          <ul className="list-disc pl-4 space-y-1">
-                            {item.form.map((pt, i) => <li key={i} className="text-th-text-secondary">{pt}</li>)}
-                          </ul>
-                        ) : (
-                          <div className="text-th-text-secondary">{item.form}</div>
-                        )}
+                        {renderSafeStringOrList(item.form, "text-th-text-secondary")}
                       </div>
                       <div>
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Tip: </div>
-                        {Array.isArray(item.tip) ? (
-                          <ul className="list-disc pl-4 space-y-1">
-                            {item.tip.map((pt, i) => <li key={i} className="text-th-text-muted">{pt}</li>)}
-                          </ul>
-                        ) : (
-                          <div className="text-th-text-muted">{item.tip}</div>
-                        )}
+                        {renderSafeStringOrList(item.tip, "text-th-text-muted")}
                       </div>
                     </div>
                   </div>
