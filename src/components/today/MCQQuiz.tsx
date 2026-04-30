@@ -181,7 +181,9 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
           <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-3">
             Client Scenario — All questions refer to this situation
           </div>
-          <p className="text-sm text-th-text-secondary leading-relaxed whitespace-pre-wrap">{scenario}</p>
+          <p className="text-sm text-th-text-secondary leading-relaxed whitespace-pre-wrap">
+            {typeof scenario === 'string' ? scenario : JSON.stringify(scenario)}
+          </p>
         </div>
       )}
 
