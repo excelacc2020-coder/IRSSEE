@@ -362,15 +362,28 @@ export async function updateCardStatus(
 
 export function parseQuizQuestions(raw: unknown): MCQQuestion[] {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw as MCQQuestion[];
   try {
-    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    let questions: any[] = [];
+    
     // New format: MCQSet with scenario + questions
     if (parsed && typeof parsed === 'object' && 'questions' in parsed) {
-      return (parsed as MCQSet).questions;
+      questions = (parsed as MCQSet).questions;
+    } else if (Array.isArray(parsed)) {
+      questions = parsed;
     }
-    if (Array.isArray(parsed)) return parsed as MCQQuestion[];
-    return [];
+
+    // CRITICAL FIX: Filter out malformed questions. If the JSON was truncated, 
+    // we might have a question object missing its 'options' or 'correct' fields.
+    // If we pass an undefined 'options' to the UI, Object.entries(q.options) will crash React.
+    return questions.filter(q => 
+      q && 
+      typeof q === 'object' && 
+      q.id && 
+      q.options && 
+      typeof q.options === 'object' &&
+      !Array.isArray(q.options)
+    ) as MCQQuestion[];
   } catch {
     return [];
   }
