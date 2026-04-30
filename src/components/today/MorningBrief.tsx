@@ -153,12 +153,14 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           {(brief.sections ?? []).map((section, si) => (
             <div key={si} className="border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 rounded-xl p-5">
               <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-3">
-                {section.heading}
+                {typeof section.heading === 'string' ? section.heading : JSON.stringify(section.heading)}
               </h4>
               <div className="space-y-3">
-                {(section.items ?? []).map((item, ii) => (
+                {(Array.isArray(section.items) ? section.items : []).map((item, ii) => (
                   <div key={ii} className="bg-white/60 dark:bg-blue-900/20 rounded-lg p-3">
-                    <p className="text-sm font-medium text-th-text mb-1.5">{item.label}</p>
+                    <p className="text-sm font-medium text-th-text mb-1.5">
+                      {typeof item.label === 'string' ? item.label : JSON.stringify(item.label)}
+                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm">
                       <div className="col-span-1 sm:col-span-2">
                         <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase mb-1">Rule: </div>
@@ -189,7 +191,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
               Connections
             </h4>
             <div className="text-sm text-th-text-secondary whitespace-pre-wrap leading-relaxed">
-              {brief.connections}
+              {renderSafeStringOrList(brief.connections, "")}
             </div>
           </div>
 
@@ -199,7 +201,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
               Exam Traps
             </h4>
             <div className="text-sm text-th-text-secondary whitespace-pre-wrap leading-relaxed">
-              {brief.examTraps}
+              {renderSafeStringOrList(brief.examTraps, "")}
             </div>
           </div>
 
@@ -209,7 +211,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
               Error Bridge
             </h4>
             <div className="text-sm text-th-text-secondary whitespace-pre-wrap leading-relaxed">
-              {brief.errorBridge}
+              {renderSafeStringOrList(brief.errorBridge, "")}
             </div>
           </div>
 

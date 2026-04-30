@@ -215,13 +215,16 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
                      q.type === 'incomplete' ? 'Complete the Sentence' :
                      q.type === 'except' ? 'All EXCEPT' : 'Scenario-Based'}
                   </span>
-                  <p className="text-th-text text-sm leading-relaxed">{q.question}</p>
+                  <p className="text-th-text text-sm leading-relaxed">
+                    {typeof q.question === 'string' ? q.question : JSON.stringify(q.question)}
+                  </p>
                 </div>
               </div>
 
               <div className="grid gap-2 ml-10">
                 {OPTION_KEYS.map(key => {
-                  const optionText = q.options[key];
+                  const rawOption = q.options[key];
+                  const optionText = typeof rawOption === 'string' ? rawOption : JSON.stringify(rawOption);
                   const isSelected = userAnswer === key;
                   const isCorrectOption = key === q.correct;
 
@@ -262,7 +265,9 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
               {submitted && reviewMode && (
                 <div className="mt-4 ml-10 p-3 bg-th-input/60 rounded-lg border border-th-border-strong">
                   <p className="text-xs font-semibold text-th-text-muted mb-1">Explanation</p>
-                  <p className="text-sm text-th-text-secondary leading-relaxed">{q.explanation}</p>
+                  <p className="text-sm text-th-text-secondary leading-relaxed">
+                    {typeof q.explanation === 'string' ? q.explanation : JSON.stringify(q.explanation)}
+                  </p>
                   {!isCorrect && (
                     <p className="text-xs text-red-600 dark:text-red-400 mt-2">Wrong answer logged for error pattern analysis.</p>
                   )}
