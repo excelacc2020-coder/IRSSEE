@@ -32,7 +32,7 @@ Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
           "label": "Specific item name (e.g., Head of Household)",
           "rule": ["Bullet point 1 — core rule or definition with ${TAX_YEAR} figure", "Bullet point 2 — additional rule detail or condition", "Bullet point 3 — further detail if needed"],
           "threshold": ["Bullet 1 — specific ${TAX_YEAR} dollar amount or limit", "Bullet 2 — phase-out range or income limit", "Bullet 3 — additional threshold if applicable"],
-          "form": ["Form XXXX — purpose and key line number", "Schedule X — when required"],
+          "form": ["Bullet 1 MUST detail: The IRS required sources through which a tax preparer shall confirm the amount to be included while preparing tax returns/filing", "Bullet 2 MUST detail: The supplemental forms/schedules where the amounts and information are to be recorded and attached while filing tax returns", "Bullet 3 — any additional form details"],
           "tip": ["Bullet 1 — exam trap with explanation of WHY it tricks students and how to avoid it", "Bullet 2 — additional trap or memorization tip if applicable"]
         }
       ]
