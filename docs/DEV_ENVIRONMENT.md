@@ -1,101 +1,127 @@
 # Dev → Prod Environment Guide
 
-This project uses a **two-environment** flow on Vercel + Supabase.
+This project runs a **two-environment** setup on Vercel + Supabase.
 
 | Environment | Git branch | Vercel deployment | Supabase project |
 |-------------|-----------|-------------------|------------------|
-| **Production** | `main` | Production (live domain) | Prod Supabase |
-| **Dev** | `dev` | Preview (auto URL per push) | **Separate** Dev Supabase |
+| **Production** | `main` | Production (`irssee.vercel.app`) | Prod Supabase |
+| **Dev** | `dev` | Preview (auto-built per push) | **Dev** Supabase (`ogknjlwtlzdqcofnqehy`) |
 
-Rule: never push experimental work to `main`. Work on `dev`, test on its Preview
-URL against the Dev database, and only then promote to Prod by merging `dev → main`.
+**Golden rule:** never push experimental work to `main`. Work on `dev`, test on its
+Preview URL (which talks to the Dev database), then promote by merging `dev → main`.
+
+## Live URLs
+
+- **Dev Preview (always latest `dev`):**
+  `https://irssee-git-dev-hasnains-projects-d9d5d007.vercel.app`
+- **Production:** `https://irssee.vercel.app`
+
+> The Dev Preview is gated by **Vercel Deployment Protection** — open it while logged
+> into Vercel, or set Project → Settings → Deployment Protection → Vercel Authentication
+> to **"Only Production"** to make Previews publicly viewable (needed for phone testing
+> without a Vercel login).
 
 ---
 
-## One-time setup
+## How the Dev database is wired (already done)
 
-### 1. Create a separate Dev Supabase project
+`VITE_*` env vars are inlined at **build time**, so each environment must build with its
+own Supabase values. Both Supabase vars existed as a single record targeting
+**all** environments (Production values). To point **only** the `dev` Preview at the Dev
+database **without touching Production**, we added **branch-scoped** overrides:
 
-1. Go to https://supabase.com/dashboard → **New project** (e.g. `irssee-dev`).
-2. Open the new project's **SQL Editor** and run the full contents of
-   [`supabase/schema.sql`](../supabase/schema.sql). This creates all tables
-   (including the `topic_stories` column) with RLS policies.
-3. From **Project Settings → API**, copy:
-   - **Project URL** → this is the Dev `VITE_SUPABASE_URL`
-   - **anon public** key → this is the Dev `VITE_SUPABASE_ANON_KEY`
+| Variable | Scope | Value |
+|----------|-------|-------|
+| `VITE_SUPABASE_URL` | Preview · branch `dev` | Dev project URL |
+| `VITE_SUPABASE_ANON_KEY` | Preview · branch `dev` | Dev anon key |
 
-### 2. Point Vercel Preview builds at the Dev Supabase
+Branch-scoped values take precedence over the environment-wide value for that branch,
+so `dev` builds use the Dev DB while every other deployment (incl. Production) keeps the
+original values.
 
-Vercel lets you scope environment variables per environment. We set the
-**Preview** scope to the Dev database and leave **Production** on the Prod database.
-Because `VITE_*` vars are inlined at build time and Vercel builds Preview and
-Production separately, each deployment automatically gets the right database.
-
-**Via the dashboard** (Project `irssee` → Settings → Environment Variables):
-
-| Variable | Production value | Preview value |
-|----------|------------------|---------------|
-| `VITE_SUPABASE_URL` | (existing Prod URL) | **Dev** project URL |
-| `VITE_SUPABASE_ANON_KEY` | (existing Prod anon key) | **Dev** anon key |
-
-For each variable, add a Preview-scoped entry with the Dev value. Keep the
-existing Production-scoped entries untouched.
-
-**Or via CLI** (after `vercel login`):
+To reproduce / change these (needs a Vercel token with team scope
+`hasnains-projects-d9d5d007`):
 
 ```bash
-vercel env add VITE_SUPABASE_URL preview        # paste Dev URL
-vercel env add VITE_SUPABASE_ANON_KEY preview    # paste Dev anon key
+# add a branch-scoped Preview override (value piped from stdin)
+vercel env add VITE_SUPABASE_URL preview dev --scope hasnains-projects-d9d5d007
+vercel env add VITE_SUPABASE_ANON_KEY preview dev --scope hasnains-projects-d9d5d007
 ```
 
-After changing env vars, redeploy the `dev` branch (push any commit, or use
-"Redeploy" in Vercel) so the new values are baked in.
+After changing env vars, **redeploy `dev`** so the new values bake in:
+
+```bash
+git commit --allow-empty -m "chore: rebuild dev" && git push   # easiest, or
+vercel redeploy <dev-deployment-url> --scope hasnains-projects-d9d5d007
+```
+
+---
+
+## Dev Supabase project (one-time, already done)
+
+1. Created a separate Supabase project (`Dev ea-command-center`,
+   `https://ogknjlwtlzdqcofnqehy.supabase.co`).
+2. Ran the full [`supabase/schema.sql`](../supabase/schema.sql) in its SQL Editor —
+   creates every table (incl. `topic_stories`) with RLS.
+3. Copied **Project URL** + **anon public** key into the Vercel branch-scoped vars above.
+
+The Dev database is **empty and isolated**: you sign up with a fresh account there, and
+re-enter your Claude API key in the app's Settings (the `user_settings` row is per-DB).
+If signup stalls, disable **Authentication → Providers → Email → "Confirm email"** in the
+Dev project for fast testing.
 
 ---
 
 ## Daily workflow
 
 ```bash
-# start work
 git checkout dev
-
-# ...make changes, then:
-git add -A
-git commit -m "feat: <change>"
-git push                      # → Vercel builds a fresh Preview automatically
+# ...edit...
+git add -A && git commit -m "feat: <change>"
+git push                       # → Vercel auto-builds a fresh Dev Preview
 ```
 
-Find the Preview URL:
-- **GitHub**: open the repo → the `dev` branch / its PR shows the Vercel
-  deployment with an "View deployment" / preview link, **or**
-- **Vercel dashboard**: project `irssee` → Deployments → the latest from `dev`.
-
-Test the change on that Preview URL (it reads/writes the **Dev** Supabase, so
-Prod data is never touched).
+Find the build: GitHub commit/PR shows a Vercel check, or Vercel dashboard →
+project `irssee` → Deployments → latest from `dev`. Test on the Dev Preview URL above.
 
 ---
 
 ## Promote to Production
 
-Once the change is verified on the Preview URL:
+Once verified on the Dev Preview:
 
+**Via PR (recommended):**
 ```bash
-git checkout main
-git merge --ff-only dev        # fast-forward; falls back to a merge commit if needed
-git push origin main           # → Vercel deploys Production
-git checkout dev               # go back to working branch
+gh pr create --base main --head dev --title "Promote dev → main" --body "..."
+# review, then merge on GitHub → Vercel deploys Production
 ```
 
-(Or open a PR `dev → main` on GitHub and merge it there.)
+**Or fast-forward merge:**
+```bash
+git checkout main
+git merge --ff-only dev
+git push origin main           # → Vercel deploys Production
+git checkout dev
+```
 
-### Don't forget DB migrations on Prod
+### Run matching DB migrations on Prod
 
-If the change added or altered tables/columns, run the matching SQL on the
-**Prod** Supabase before or right after promoting. The current additive
-migration (safe to run anytime) is:
+If the change altered the schema, run the matching SQL on the **Prod** Supabase too.
+Current additive migration (safe to run anytime):
 
 ```sql
 alter table sessions add column if not exists topic_stories jsonb not null default '{}'::jsonb;
 ```
 
-The full migration block lives at the bottom of [`supabase/schema.sql`](../supabase/schema.sql).
+The full migration block is at the bottom of [`supabase/schema.sql`](../supabase/schema.sql).
+
+---
+
+## Connection map (what's linked to what)
+
+- **GitHub `excelacc2020-coder/IRSSEE` ↔ Vercel `irssee`** — connected; pushes to any
+  branch build automatically (`main` → Production, others → Preview).
+- **Vercel Preview (`dev` branch) ↔ Dev Supabase** — via branch-scoped env vars (above).
+- **Vercel Production (`main`) ↔ Prod Supabase** — via the original all-environment vars.
+- **GitHub ↔ Supabase** — *not* connected; schema changes are applied manually per the
+  promote step above.
