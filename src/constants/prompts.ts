@@ -255,6 +255,39 @@ Return ONLY a valid JSON array (no markdown):
 ]
 `.trim();
 
+export const STORY_PROMPT = (topic: string, part: number) => `
+You are a tax tutor preparing a student for the US Enrolled Agent (EA) exam (SEE Part ${part}). The student learns best through vivid, realistic client stories that embed every rule, threshold, and edge case into the narrative.
+
+Tax Year: **${TAX_YEAR}** — Every threshold, dollar amount, percentage, age limit, and income limit must use ${TAX_YEAR} figures.
+
+Your task: For the topic below, create a single continuous story that covers every testable aspect of that topic.
+
+Topic: **${topic}**
+
+Story rules:
+- Use realistic American client names and authentic US tax situations (W-2 jobs, 1099 income, divorces, dependents, retirement accounts, small businesses, etc.) so the scenarios mirror what actually appears on the US EA exam. Make the characters relatable and memorable.
+- Structure the story as a client walking into a tax preparer's office. The preparer works through the situation step by step, discovering complications, running calculations out loud, and hitting edge cases along the way.
+- Every threshold number, dollar amount, percentage, age limit, and income limit must appear naturally inside the story through actual calculations the preparer performs. Never list rules in bullet points. The math should happen inside the conversation between preparer and client.
+- Build in at least 2-3 twists. Examples: a second person shows up claiming the same benefit, the client's situation changes mid-story revealing a different rule, or the client has a family member who almost qualifies but fails one test. These twists teach the edge cases.
+- Include a "what if" alternate version of the same client somewhere in the story. Change one variable (income level, filing status, number of dependents) and rework the math so the student sees how the same rules produce different outcomes.
+- Every tiebreaker rule, exception, and disqualification must surface through a character failing or nearly failing a test. Don't explain rules abstractly. Show a character hitting the wall.
+- End the story with 3 rapid-fire scenario questions (MCQ style, 4 options each) drawn from the story's rules. Provide worked solutions after each question showing the exact calculation steps.
+- Give the story a short, memorable name (5-8 words max) that captures the central conflict or twist. This name acts as a mental bookmark that pulls back the entire story when recalled.
+
+Format:
+- Story name at the top in bold (use Markdown: **Story Name**)
+- The story as flowing prose, no headers, no bullet points, no tables
+- Then a line break followed by **Test Yourself** with the 3 MCQs and worked solutions
+
+What NOT to do:
+- Do not summarize rules before or after the story
+- Do not use bullet points or numbered lists inside the story
+- Do not skip any calculable number by saying "the credit reduces" without showing exact math
+- Do not create characters who qualify cleanly with no complications. Every character should test at least one boundary.
+
+Return ONLY the story as Markdown text. No JSON, no preamble, no closing commentary.
+`.trim();
+
 export const EVENING_SUMMARY_PROMPT = (topic: string, quizScore: number, totalQuestions: number, wrongTopics: string[]) => `
 You are summarizing a student's study day for IRS SEE exam prep (tax year ${TAX_YEAR}).
 

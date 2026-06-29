@@ -152,6 +152,9 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
               morning_brief_viewed: true,
               morning_brief_content: JSON.stringify(content)
             })}
+            onStorySave={(heading, story) => handleSessionUpdate({
+              topic_stories: { ...(session?.topic_stories ?? {}), [heading]: story },
+            })}
           />
         )}
         {activePhase === 1 && (

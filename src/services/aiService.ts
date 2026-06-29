@@ -6,6 +6,7 @@ import {
   MOCK_EXAM_PROMPT,
   ERROR_CATEGORIZATION_PROMPT,
   ANKI_CARDS_PROMPT,
+  STORY_PROMPT,
 } from '../constants/prompts';
 
 export interface AIConfig {
@@ -20,7 +21,7 @@ const CLAUDE_OPUS_MODEL = 'claude-opus-4-6';
 const CLAUDE_SONNET_MODEL = 'claude-sonnet-4-6';
 const CLAUDE_HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
-type TaskType = 'morningBrief' | 'mindMap' | 'ankiCards' | 'mcq' | 'categorizeError';
+type TaskType = 'morningBrief' | 'mindMap' | 'ankiCards' | 'mcq' | 'categorizeError' | 'story';
 
 function resolveModel(config: AIConfig, task: TaskType): string {
   if (config.provider !== 'claude') return config.model;
@@ -30,6 +31,7 @@ function resolveModel(config: AIConfig, task: TaskType): string {
     case 'morningBrief':
     case 'mindMap':
     case 'ankiCards':
+    case 'story':
       return CLAUDE_OPUS_MODEL;
     case 'mcq':
       return CLAUDE_SONNET_MODEL; // MCQ needs reliable arithmetic — Haiku makes calculation errors
@@ -138,6 +140,7 @@ const TASK_TOKEN_LIMITS: Record<TaskType, number> = {
   mcq:          12288,  // 200-300 word scenario + 6 questions with comprehensive explanations
   ankiCards:     8192,  // 8-12 detailed cards
   categorizeError: 1024, // single short JSON object
+  story:        12288,  // continuous narrative + 3 worked MCQ solutions
 };
 
 async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise<string> {
@@ -298,6 +301,16 @@ export async function generateAnkiCards(
   const raw = await callAI(config, 'ankiCards', prompt);
   const cards = parseJSON<Array<{ question: string; answer: string }>>(raw);
   return cards.map(c => ({ ...c, day, topic }));
+}
+
+export async function generateStory(
+  config: AIConfig,
+  topic: string,
+  part: number
+): Promise<string> {
+  const prompt = STORY_PROMPT(topic, part);
+  // Story output is flowing Markdown prose, not JSON — return it as-is.
+  return callAI(config, 'story', prompt);
 }
 
 export async function testConnection(config: AIConfig): Promise<{ ok: boolean; error?: string }> {

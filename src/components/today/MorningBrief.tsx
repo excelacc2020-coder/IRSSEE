@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { generateMorningBrief } from '../../services/aiService';
+import { generateMorningBrief, generateStory } from '../../services/aiService';
 import { getRecentErrors } from '../../services/storageService';
+import StoryModal from './StoryModal';
 import type { User, Session, UserSettings, MorningBriefContent, LessonTopic } from '../../types';
 
 interface MorningBriefProps {
@@ -9,6 +10,7 @@ interface MorningBriefProps {
   session: Session | null;
   settings: UserSettings | null;
   onComplete: (content: MorningBriefContent) => void;
+  onStorySave: (heading: string, story: string) => void;
 }
 
 function renderSafeStringOrList(content: any, textClass: string) {
@@ -59,7 +61,7 @@ function parseBriefFromSession(session: Session | null): MorningBriefContent | n
   }
 }
 
-export default function MorningBrief({ user, topic, session, settings, onComplete }: MorningBriefProps) {
+export default function MorningBrief({ user, topic, session, settings, onComplete, onStorySave }: MorningBriefProps) {
   // Single source of truth: session.morning_brief_content (backed by Supabase).
   // We derive the brief directly from the session prop — no separate localStorage key.
   const [brief, setBrief] = useState<MorningBriefContent | null>(() =>
@@ -76,6 +78,46 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // ─── Story generation per section heading ──────────────────────────────────
+  const [localStories, setLocalStories] = useState<Record<string, string>>({});
+  const [storyOpenHeading, setStoryOpenHeading] = useState<string | null>(null);
+  const [storyLoadingHeading, setStoryLoadingHeading] = useState<string | null>(null);
+  const [storyError, setStoryError] = useState('');
+
+  // Merge persisted stories (from session) with any generated this render.
+  const stories: Record<string, string> = { ...(session?.topic_stories ?? {}), ...localStories };
+
+  async function handleStoryClick(heading: string) {
+    setStoryError('');
+
+    // Already generated — just open it.
+    if (stories[heading]) {
+      setStoryOpenHeading(heading);
+      return;
+    }
+
+    if (!settings?.ai_api_key) {
+      setStoryError('No AI API key configured. Go to Settings to add your API key.');
+      return;
+    }
+
+    setStoryLoadingHeading(heading);
+    try {
+      const story = await generateStory(
+        { provider: settings.ai_provider, apiKey: settings.ai_api_key, model: settings.ai_model },
+        heading,
+        topic.part
+      );
+      setLocalStories(prev => ({ ...prev, [heading]: story }));
+      onStorySave(heading, story);
+      setStoryOpenHeading(heading);
+    } catch (err) {
+      setStoryError(err instanceof Error ? err.message : `Failed to generate story for ${heading}`);
+    } finally {
+      setStoryLoadingHeading(null);
+    }
+  }
 
   async function generate() {
     if (!settings?.ai_api_key) {
@@ -136,6 +178,20 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           </div>
         )}
 
+        {storyError && (
+          <div className="mb-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3 text-red-400 text-sm">
+            {storyError}
+          </div>
+        )}
+
+        {storyOpenHeading && stories[storyOpenHeading] && (
+          <StoryModal
+            heading={storyOpenHeading}
+            story={stories[storyOpenHeading]}
+            onClose={() => setStoryOpenHeading(null)}
+          />
+        )}
+
         <div className="space-y-4">
           {/* Overview — real-world context paragraph */}
           {brief.overview && (
@@ -150,11 +206,28 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           )}
 
           {/* Sections — one card per subtopic group with items */}
-          {(brief.sections ?? []).map((section, si) => (
+          {(brief.sections ?? []).map((section, si) => {
+            const headingStr = typeof section.heading === 'string' ? section.heading : JSON.stringify(section.heading);
+            const hasStory = Boolean(stories[headingStr]);
+            const isStoryLoading = storyLoadingHeading === headingStr;
+            return (
             <div key={si} className="border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 rounded-xl p-5">
-              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-3">
-                {typeof section.heading === 'string' ? section.heading : JSON.stringify(section.heading)}
-              </h4>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  {headingStr}
+                </h4>
+                <button
+                  onClick={() => handleStoryClick(headingStr)}
+                  disabled={isStoryLoading}
+                  className={`flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-60 ${
+                    hasStory
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'border border-blue-400 dark:border-blue-600 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                  }`}
+                >
+                  {isStoryLoading ? 'Creating…' : hasStory ? 'View Story' : 'Create Story'}
+                </button>
+              </div>
               <div className="space-y-3">
                 {(Array.isArray(section.items) ? section.items : []).map((item, ii) => (
                   <div key={ii} className="bg-white/60 dark:bg-blue-900/20 rounded-lg p-3">
@@ -183,7 +256,8 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* Connections */}
           <div className="border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl p-5">

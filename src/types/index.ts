@@ -22,6 +22,7 @@ export interface Session {
   part: 1 | 2 | 3;
   morning_brief_viewed: boolean;
   morning_brief_content?: string;
+  topic_stories?: Record<string, string>; // section heading -> generated story (markdown)
   study_notes: string;
   mind_map_generated: boolean;
   mind_map_content: string;
