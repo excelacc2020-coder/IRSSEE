@@ -271,19 +271,26 @@ Story rules:
 - Build in at least 2-3 twists. Examples: a second person shows up claiming the same benefit, the client's situation changes mid-story revealing a different rule, or the client has a family member who almost qualifies but fails one test. These twists teach the edge cases.
 - Include a "what if" alternate version of the same client somewhere in the story. Change one variable (income level, filing status, number of dependents) and rework the math so the student sees how the same rules produce different outcomes.
 - Every tiebreaker rule, exception, and disqualification must surface through a character failing or nearly failing a test. Don't explain rules abstractly. Show a character hitting the wall.
-- End the story with 3 rapid-fire scenario questions (MCQ style, 4 options each) drawn from the story's rules. Provide worked solutions after each question showing the exact calculation steps.
+- Divide the story into 3-5 short titled sections, each covering ONE sub-aspect of the topic (for example: an eligibility test, a phase-out, a refundable portion, an exception). Put each section's title on its own line wrapped in Markdown bold, e.g. **The Phase-Out Wall**. Within each section write flowing narrative prose — no bullet points, no numbered lists, no tables. The sections together must still read as ONE continuous story with the same characters carried through.
 - Give the story a short, memorable name (5-8 words max) that captures the central conflict or twist. This name acts as a mental bookmark that pulls back the entire story when recalled.
 
+End with a section whose title line is **Test Yourself**, containing exactly 3 multiple-choice questions (4 options each, labeled A-D), followed by a worked solution after each showing the exact calculation steps.
+CRITICAL rules for these questions:
+- They must be BRAND-NEW "if-then" scenarios that change one or more variables from the story (a different income, age, filing status, number of dependents, or timing) and ask what happens under the new facts.
+- They must NOT re-ask, restate, or reuse any question, number, or outcome the preparer already worked out in the narrative. If the story already computed an answer, do not ask it again — invent a new variation that forces the student to re-apply the rule to different numbers.
+- Phrase each as an if-then variation, e.g. "If [character]'s AGI had been $X instead of $Y, then the credit would be ______?"
+
 Format:
-- Story name at the top in bold (use Markdown: **Story Name**)
-- The story as flowing prose, no headers, no bullet points, no tables
-- Then a line break followed by **Test Yourself** with the 3 MCQs and worked solutions
+- Story name on the very first line in bold (use Markdown: **Story Name**)
+- Then the 3-5 titled sections in flowing prose, each introduced by its own bold title line
+- Finally the **Test Yourself** section with the 3 new if-then MCQs and their worked solutions
 
 What NOT to do:
 - Do not summarize rules before or after the story
-- Do not use bullet points or numbered lists inside the story
+- Do not use bullet points or numbered lists inside the narrative prose (section title lines are allowed and required)
 - Do not skip any calculable number by saying "the credit reduces" without showing exact math
 - Do not create characters who qualify cleanly with no complications. Every character should test at least one boundary.
+- Do not make the Test Yourself questions duplicates of anything already solved in the story — they must use new variable values.
 
 Return ONLY the story as Markdown text. No JSON, no preamble, no closing commentary.
 `.trim();

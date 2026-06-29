@@ -88,11 +88,11 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
   // Merge persisted stories (from session) with any generated this render.
   const stories: Record<string, string> = { ...(session?.topic_stories ?? {}), ...localStories };
 
-  async function handleStoryClick(heading: string) {
+  async function handleStoryClick(heading: string, force = false) {
     setStoryError('');
 
-    // Already generated — just open it.
-    if (stories[heading]) {
+    // Already generated — just open it (unless a regeneration is forced).
+    if (!force && stories[heading]) {
       setStoryOpenHeading(heading);
       return;
     }
@@ -188,6 +188,8 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
           <StoryModal
             heading={storyOpenHeading}
             story={stories[storyOpenHeading]}
+            regenerating={storyLoadingHeading === storyOpenHeading}
+            onRegenerate={() => handleStoryClick(storyOpenHeading, true)}
             onClose={() => setStoryOpenHeading(null)}
           />
         )}

@@ -4,6 +4,8 @@ interface StoryModalProps {
   heading: string;
   story: string;
   onClose: () => void;
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 }
 
 /**
@@ -24,31 +26,67 @@ function renderInline(line: string, keyPrefix: string) {
   });
 }
 
+function isStandaloneBoldBlock(block: string): boolean {
+  const trimmed = block.trim();
+  return (
+    !trimmed.includes('\n') &&
+    trimmed.startsWith('**') &&
+    trimmed.endsWith('**') &&
+    trimmed.length > 4
+  );
+}
+
 /**
- * Minimal Markdown renderer for the story format: bold story name, flowing
- * prose paragraphs (blank-line separated), and the "Test Yourself" block.
+ * Minimal Markdown renderer for the story format:
+ *  - first standalone-bold block  -> story title
+ *  - "Test Yourself" heading       -> quiz divider
+ *  - other standalone-bold blocks  -> blue section headings (echo brief subtopics)
+ *  - everything else               -> flowing prose paragraphs
  * No external Markdown dependency — the story format is intentionally simple.
  */
 function renderStory(story: string) {
   const blocks = story.trim().split(/\n{2,}/);
-  return blocks.map((block, bi) => {
-    const lines = block.split('\n');
-    // A block whose only content is a single bold phrase reads as a heading.
-    const trimmed = block.trim();
-    const isStandaloneBold =
-      lines.length === 1 &&
-      trimmed.startsWith('**') &&
-      trimmed.endsWith('**') &&
-      trimmed.length > 4;
+  const titleIndex = blocks.findIndex(isStandaloneBoldBlock);
 
-    if (isStandaloneBold) {
+  return blocks.map((block, bi) => {
+    const trimmed = block.trim();
+
+    if (isStandaloneBoldBlock(block)) {
+      const text = trimmed.slice(2, -2).trim();
+
+      // Story title — the first bold heading.
+      if (bi === titleIndex) {
+        return (
+          <p key={bi} className="text-xl font-bold text-th-text first:mt-0">
+            {text}
+          </p>
+        );
+      }
+
+      // The quiz divider gets a separating rule.
+      if (/^test yourself/i.test(text)) {
+        return (
+          <p
+            key={bi}
+            className="text-sm font-semibold text-th-text uppercase tracking-wider border-t border-th-border pt-4 mt-6"
+          >
+            {text}
+          </p>
+        );
+      }
+
+      // Section heading — styled to mirror the Morning Brief subtopics.
       return (
-        <p key={bi} className="text-lg font-semibold text-th-text mt-5 first:mt-0">
-          {trimmed.slice(2, -2)}
+        <p
+          key={bi}
+          className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mt-5"
+        >
+          {text}
         </p>
       );
     }
 
+    const lines = block.split('\n');
     return (
       <p key={bi} className="text-sm text-th-text-secondary leading-relaxed">
         {lines.map((line, li) => (
@@ -62,7 +100,7 @@ function renderStory(story: string) {
   });
 }
 
-export default function StoryModal({ heading, story, onClose }: StoryModalProps) {
+export default function StoryModal({ heading, story, onClose, onRegenerate, regenerating }: StoryModalProps) {
   // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -87,17 +125,34 @@ export default function StoryModal({ heading, story, onClose }: StoryModalProps)
             <p className="text-xs text-th-text-faint uppercase tracking-wider mb-0.5">Story</p>
             <h3 className="text-lg font-semibold text-th-text">{heading}</h3>
           </div>
-          <button
-            onClick={onClose}
-            className="text-th-text-faint hover:text-th-text transition-colors text-sm px-3 py-1 rounded-lg hover:bg-th-hover flex-shrink-0 ml-4"
-            aria-label="Close story"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={regenerating}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-th-border text-th-text-secondary hover:bg-th-hover transition-colors disabled:opacity-60"
+              >
+                {regenerating ? 'Regenerating…' : 'Regenerate'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-th-text-faint hover:text-th-text transition-colors text-sm px-3 py-1 rounded-lg hover:bg-th-hover"
+              aria-label="Close story"
+            >
+              Close
+            </button>
+          </div>
         </div>
 
         {/* Body */}
         <div className="px-6 py-5 overflow-y-auto space-y-3">
+          {regenerating && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-th-text-muted">
+              <span className="inline-block w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              Rewriting the story with the latest format…
+            </div>
+          )}
           {renderStory(story)}
         </div>
       </div>
