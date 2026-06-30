@@ -105,9 +105,17 @@ async function callOpenAICompat(
   }
 
   const data = await response.json() as {
-    choices: Array<{ message: { content: string } }>;
+    choices: Array<{ message: { content: string | null }; finish_reason?: string }>;
   };
-  return data.choices[0]?.message?.content ?? '';
+  const choice = data.choices?.[0];
+  const content = choice?.message?.content ?? '';
+  if (!content.trim()) {
+    const reason = choice?.finish_reason ? ` (finish_reason: ${choice.finish_reason})` : '';
+    throw new Error(
+      `Model "${model}" returned empty content${reason}. It may have hit the token limit or spent the budget on reasoning — try a different model in Settings.`
+    );
+  }
+  return content;
 }
 
 async function callGemini(apiKey: string, model: string, prompt: string, maxTokens = 4096): Promise<string> {
@@ -317,7 +325,13 @@ export async function generateStory(
 ): Promise<string> {
   const prompt = STORY_PROMPT(topic, part);
   // Story output is flowing Markdown prose, not JSON — return it as-is.
-  return callAI(config, 'story', prompt);
+  const story = await callAI(config, 'story', prompt);
+  if (!story.trim()) {
+    throw new Error(
+      `Model "${config.model}" returned an empty story. Try again, or switch to a different provider/model in Settings.`
+    );
+  }
+  return story;
 }
 
 export async function testConnection(config: AIConfig): Promise<{ ok: boolean; error?: string }> {
