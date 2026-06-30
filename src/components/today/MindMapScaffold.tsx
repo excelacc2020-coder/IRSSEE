@@ -241,12 +241,16 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
 
   const alreadyGenerated = session?.mind_map_generated ?? false;
   const scan = mindMap?.scan;
-  const tree = mindMap?.decisionTree;
-  const flow = mindMap?.calculationFlow;
   const grid = mindMap?.comparisonGrid;
 
-  const hasTree = !!tree && Array.isArray(tree.gates) && tree.gates.length > 0;
-  const hasFlow = !!flow && Array.isArray(flow.steps) && flow.steps.length > 0;
+  // Normalize: new maps use arrays; legacy maps used a single object.
+  const trees = mindMap?.decisionTrees ?? (mindMap?.decisionTree ? [mindMap.decisionTree] : []);
+  const flows = mindMap?.calculationFlows ?? (mindMap?.calculationFlow ? [mindMap.calculationFlow] : []);
+  const renderableTrees = trees.filter(t => t && Array.isArray(t.gates) && t.gates.length > 0);
+  const renderableFlows = flows.filter(f => f && Array.isArray(f.steps) && f.steps.length > 0);
+
+  const hasTree = renderableTrees.length > 0;
+  const hasFlow = renderableFlows.length > 0;
   const hasGrid = !!grid && Array.isArray(grid.columns) && Array.isArray(grid.rows) && grid.rows.length > 0;
 
   return (
@@ -342,24 +346,46 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
             </section>
           )}
 
-          {/* ── Decision Tree (green) ─────────────────────────────────────── */}
+          {/* ── Decision Trees (green) — one per gated process ────────────── */}
           <section>
-            <SectionTitle accent="bg-emerald-500">Decision Tree</SectionTitle>
+            <SectionTitle accent="bg-emerald-500">
+              {renderableTrees.length > 1 ? 'Decision Trees' : 'Decision Tree'}
+            </SectionTitle>
             {hasTree ? (
-              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
-                <MermaidDiagram chart={buildDecisionTreeChart(tree!)} />
+              <div className="space-y-4">
+                {renderableTrees.map((t, i) => (
+                  <div key={i} className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
+                    {s(t.title) && (
+                      <h5 className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-2">
+                        {s(t.title)}
+                      </h5>
+                    )}
+                    <MermaidDiagram chart={buildDecisionTreeChart(t)} />
+                  </div>
+                ))}
               </div>
             ) : (
               <EmptyOutput text="No gate (yes/no eligibility) rules in this brief — no decision tree needed." />
             )}
           </section>
 
-          {/* ── Calculation Flow (blue) ───────────────────────────────────── */}
+          {/* ── Calculation Flows (blue) — one per calculation ────────────── */}
           <section>
-            <SectionTitle accent="bg-blue-500">Calculation Flow</SectionTitle>
+            <SectionTitle accent="bg-blue-500">
+              {renderableFlows.length > 1 ? 'Calculation Flows' : 'Calculation Flow'}
+            </SectionTitle>
             {hasFlow ? (
-              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
-                <MermaidDiagram chart={buildCalcFlowChart(flow!)} />
+              <div className="space-y-4">
+                {renderableFlows.map((f, i) => (
+                  <div key={i} className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
+                    {s(f.title) && (
+                      <h5 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-2">
+                        {s(f.title)}
+                      </h5>
+                    )}
+                    <MermaidDiagram chart={buildCalcFlowChart(f)} />
+                  </div>
+                ))}
               </div>
             ) : (
               <EmptyOutput text="No math-chain (calculation) rules in this brief — no calculation flow needed." />

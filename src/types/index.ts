@@ -141,6 +141,7 @@ export interface TiebreakerBranch {
 }
 
 export interface DecisionTree {
+  title?: string;                 // the credit/status/test this tree resolves
   start: string;                  // what is being tested
   gates: DecisionGate[];
   success: string;                // success outcome with dollar amount
@@ -159,6 +160,7 @@ export interface CalcStep {
 }
 
 export interface CalculationFlow {
+  title?: string;       // the credit/amount this flow computes
   steps: CalcStep[];
   final: string;        // end result + form/line reference
 }
@@ -170,9 +172,12 @@ export interface ComparisonGrid {
 
 export interface MindMapContent {
   scan: RuleAnatomyScan;
+  decisionTrees?: DecisionTree[];   // one tree per distinct gated process
+  calculationFlows?: CalculationFlow[]; // one flow per distinct calculation
+  comparisonGrid?: ComparisonGrid;
+  // Legacy single-object fields (pre-array maps) — normalized on read.
   decisionTree?: DecisionTree;
   calculationFlow?: CalculationFlow;
-  comparisonGrid?: ComparisonGrid;
 }
 
 export type ActiveTab = 'today' | 'dashboard' | 'cards' | 'mock-exam' | 'settings';

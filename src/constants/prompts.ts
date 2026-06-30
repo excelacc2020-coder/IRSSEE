@@ -66,11 +66,14 @@ Then decide the OUTPUT PLAN. A topic may need all three, two, or one:
 - Include "Calculation Flow" only if math chain rules exist.
 - Include "Comparison Grid" only if parallel rules exist (or the Brief references related topics like ODC/EITC to compare).
 
-━━━ STEP 2: DECISION TREE (only if gate rules exist) ━━━
-Cover every gate rule. Each gate is one yes/no question in a short phrase (under 8 words). "Yes" = PASS, flow down to the next gate. "No" = FAIL, exit to a consequence ("Does not qualify," "Check [alternative]," or "Apply tiebreakers"). Order gates as a preparer checks them (cheapest/fastest disqualifier first). Show tiebreaker rules as a sub-branch from the relevant gate. The success outcome states the credit/deduction amount.
+━━━ STEP 2: DECISION TREES (only if gate rules exist) ━━━
+Produce a SEPARATE decision tree for each distinct credit, filing status, or eligibility TEST in the brief — do not chain unrelated processes into one tree. For example, "Filing Status & Dependents" yields separate trees for Head of Household, Qualifying Child, and Qualifying Relative. Give each tree a short title naming what it resolves.
+Within each tree: each gate is one yes/no question in a short phrase (under 8 words). "Yes" = PASS, flow to the next gate. "No" = FAIL, exit to a consequence ("Does not qualify," "Check [alternative]," or "Apply tiebreakers"). Order gates as a preparer checks them (fastest disqualifier first). Show tiebreaker rules as a sub-branch from the relevant gate. The success outcome states the credit/deduction amount.
+CRITICAL: every gate rule listed in the Rule Anatomy Scan must appear as a gate in exactly one of these trees. Do not drop any gate rule.
 
-━━━ STEP 3: CALCULATION FLOW (only if math chain rules exist) ━━━
-Cover every math rule as a step-by-step chain. Each step shows one arithmetic operation with the exact formula and all threshold numbers; the output of step N feeds step N+1. Where math branches on a condition, attach a decision with both paths. Include every cap, floor, percentage, and dollar limit at the step where it applies. The final result names where it gets reported (form/line if in the Brief).
+━━━ STEP 3: CALCULATION FLOWS (only if math chain rules exist) ━━━
+Produce a SEPARATE calculation flow for each distinct amount being computed (e.g., the refundable portion vs. the phase-out reduction are separate flows). Give each a short title. Within each flow, each step shows one arithmetic operation with the exact formula and all threshold numbers; the output of step N feeds step N+1. Where math branches on a condition, attach a decision with both paths. Include every cap, floor, percentage, and dollar limit at the step where it applies. The final result names where it gets reported (form/line if in the Brief).
+CRITICAL: every math-chain rule from the Rule Anatomy Scan must appear in one of these flows.
 
 ━━━ STEP 4: COMPARISON GRID (only if parallel rules exist) ━━━
 Rows are shared dimensions (age test, income limit, refundability, credit amount, SSN/ITIN, relationship test, forms, phase-out, etc.). Columns are the related credits/rules. Each cell is the specific value for that credit on that dimension. If a dimension is identical across all columns, still include it with value "Same". Prioritize rows where values diverge — those are the exam traps.
@@ -81,7 +84,7 @@ RULES FOR ALL OUTPUTS:
 - If the Brief references related topics (e.g., ODC, EITC), include them as Comparison Grid columns.
 - Keep all labels short and scannable.
 
-Return ONLY a valid JSON object (no markdown, no prose outside JSON). Omit decisionTree / calculationFlow / comparisonGrid entirely if that output type is not in the Output Plan.
+Return ONLY a valid JSON object (no markdown, no prose outside JSON). Omit decisionTrees / calculationFlows / comparisonGrid entirely if that output type is not in the Output Plan. "decisionTrees" and "calculationFlows" are ARRAYS — include one entry per distinct process/calculation.
 {
   "scan": {
     "gateRules": [{"rule": "short rule label", "numbers": "exact numbers/threshold, or empty string"}],
@@ -89,22 +92,28 @@ Return ONLY a valid JSON object (no markdown, no prose outside JSON). Omit decis
     "parallelRules": [{"rule": "short rule label", "numbers": "the differing values"}],
     "outputPlan": ["Decision Tree", "Calculation Flow", "Comparison Grid"]
   },
-  "decisionTree": {
-    "start": "What is being tested",
-    "gates": [
-      {"question": "Short yes/no question (< 8 words)", "failOutcome": "What happens on No"}
-    ],
-    "success": "Success outcome with dollar amount",
-    "tiebreakers": [
-      {"fromGate": 3, "rules": ["First tiebreaker", "Second tiebreaker", "Third tiebreaker"]}
-    ]
-  },
-  "calculationFlow": {
-    "steps": [
-      {"label": "What you calculate", "formula": "exact formula with all numbers", "result": "what this produces", "decision": {"condition": "condition with threshold", "yes": "path if true", "no": "path if false"}}
-    ],
-    "final": "End result + form/line reference"
-  },
+  "decisionTrees": [
+    {
+      "title": "What this tree resolves (e.g., Head of Household)",
+      "start": "What is being tested",
+      "gates": [
+        {"question": "Short yes/no question (< 8 words)", "failOutcome": "What happens on No"}
+      ],
+      "success": "Success outcome with dollar amount",
+      "tiebreakers": [
+        {"fromGate": 3, "rules": ["First tiebreaker", "Second tiebreaker", "Third tiebreaker"]}
+      ]
+    }
+  ],
+  "calculationFlows": [
+    {
+      "title": "What this flow computes (e.g., Refundable portion)",
+      "steps": [
+        {"label": "What you calculate", "formula": "exact formula with all numbers", "result": "what this produces", "decision": {"condition": "condition with threshold", "yes": "path if true", "no": "path if false"}}
+      ],
+      "final": "End result + form/line reference"
+    }
+  ],
   "comparisonGrid": {
     "columns": ["Credit/Rule A", "Credit/Rule B", "Credit/Rule C"],
     "rows": [
