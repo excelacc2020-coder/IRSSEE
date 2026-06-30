@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { generateMindMap } from '../../services/aiService';
-import type { User, Session, UserSettings, MindMapContent, LessonTopic } from '../../types';
+import type { User, Session, UserSettings, MindMapContent, ScannedRule, LessonTopic } from '../../types';
 
 interface MindMapScaffoldProps {
   user: User;
@@ -11,13 +11,98 @@ interface MindMapScaffoldProps {
   onContinue: () => void;
 }
 
-const REFERENCE_CONFIG: { key: keyof Omit<MindMapContent, 'decisionFlow'>; label: string; bgColor: string; borderColor: string; headingColor: string; emptyLabel: string }[] = [
-  { key: 'rules', label: 'Core Rules', bgColor: 'bg-blue-50 dark:bg-blue-950/20', borderColor: 'border-blue-300 dark:border-blue-700', headingColor: 'text-blue-700 dark:text-blue-300', emptyLabel: 'No rules identified' },
-  { key: 'exceptions', label: 'Exceptions', bgColor: 'bg-orange-50 dark:bg-orange-950/20', borderColor: 'border-orange-300 dark:border-orange-700', headingColor: 'text-orange-700 dark:text-orange-300', emptyLabel: 'No exceptions identified' },
-  { key: 'forms', label: 'Forms & Schedules', bgColor: 'bg-teal-50 dark:bg-teal-950/20', borderColor: 'border-teal-300 dark:border-teal-700', headingColor: 'text-teal-700 dark:text-teal-300', emptyLabel: 'No forms identified' },
-  { key: 'calculations', label: 'Calculations', bgColor: 'bg-purple-50 dark:bg-purple-950/20', borderColor: 'border-purple-300 dark:border-purple-700', headingColor: 'text-purple-700 dark:text-purple-300', emptyLabel: 'No calculations identified' },
-  { key: 'traps', label: 'Exam Traps', bgColor: 'bg-red-50 dark:bg-red-950/20', borderColor: 'border-red-300 dark:border-red-700', headingColor: 'text-red-700 dark:text-red-300', emptyLabel: 'No traps identified' },
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Coerce an unknown (possibly string[] from the AI) into a single display string. */
+function s(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map(s).join('; ');
+  if (v == null) return '';
+  return JSON.stringify(v);
+}
+
+/**
+ * Flatten the stored Morning Brief (JSON) into readable notes for the prompt.
+ * The mind map analyzes ONLY these notes, so we pass every field through.
+ */
+function briefToText(session: Session | null): string {
+  if (!session?.morning_brief_content) return '';
+  let brief: Record<string, unknown>;
+  try {
+    brief = JSON.parse(session.morning_brief_content) as Record<string, unknown>;
+  } catch {
+    return '';
+  }
+  if (!brief || typeof brief !== 'object') return '';
+
+  const lines: string[] = [];
+  if (brief.overview) lines.push(`OVERVIEW: ${s(brief.overview)}`);
+
+  const sections = Array.isArray(brief.sections) ? brief.sections : [];
+  for (const sec of sections as Array<Record<string, unknown>>) {
+    lines.push(`\n## ${s(sec.heading)}`);
+    const items = Array.isArray(sec.items) ? sec.items : [];
+    for (const it of items as Array<Record<string, unknown>>) {
+      lines.push(`- ${s(it.label)}`);
+      if (it.rule) lines.push(`  Rule: ${s(it.rule)}`);
+      if (it.threshold) lines.push(`  Threshold: ${s(it.threshold)}`);
+      if (it.form) lines.push(`  Form: ${s(it.form)}`);
+      if (it.tip) lines.push(`  Tip: ${s(it.tip)}`);
+    }
+  }
+
+  if (brief.connections) lines.push(`\nCONNECTIONS: ${s(brief.connections)}`);
+  if (brief.examTraps) lines.push(`\nEXAM TRAPS: ${s(brief.examTraps)}`);
+  if (brief.errorBridge) lines.push(`\nERROR BRIDGE: ${s(brief.errorBridge)}`);
+  return lines.join('\n');
+}
+
+// ─── Rule Anatomy Scan column config (color identity carried into each output) ──
+
+const SCAN_COLUMNS: {
+  key: 'gateRules' | 'mathChainRules' | 'parallelRules';
+  label: string;
+  output: string;
+  card: string;
+  heading: string;
+  numbers: string;
+}[] = [
+  {
+    key: 'gateRules',
+    label: 'Gate Rules',
+    output: '→ Decision Tree',
+    card: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20',
+    heading: 'text-emerald-700 dark:text-emerald-300',
+    numbers: 'text-emerald-600 dark:text-emerald-400',
+  },
+  {
+    key: 'mathChainRules',
+    label: 'Math Chain Rules',
+    output: '→ Calculation Flow',
+    card: 'border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/20',
+    heading: 'text-blue-700 dark:text-blue-300',
+    numbers: 'text-blue-600 dark:text-blue-400',
+  },
+  {
+    key: 'parallelRules',
+    label: 'Parallel Rules',
+    output: '→ Comparison Grid',
+    card: 'border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/20',
+    heading: 'text-purple-700 dark:text-purple-300',
+    numbers: 'text-purple-600 dark:text-purple-400',
+  },
 ];
+
+function SectionTitle({ accent, children }: { accent: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className={`w-2.5 h-2.5 rounded-full ${accent}`} />
+      <h4 className="text-sm font-semibold text-th-text uppercase tracking-wide">{children}</h4>
+    </div>
+  );
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function MindMapScaffold({ topic, session, settings, onComplete, onContinue }: MindMapScaffoldProps) {
   const existingContent = session?.mind_map_content
@@ -27,6 +112,8 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   const [mindMap, setMindMap] = useState<MindMapContent | null>(existingContent);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const briefText = briefToText(session);
 
   async function generate() {
     if (!settings?.ai_api_key) {
@@ -41,7 +128,8 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
       const result = await generateMindMap(
         { provider: settings.ai_provider, apiKey: settings.ai_api_key, model: settings.ai_model },
         topic.topic,
-        topic.part
+        topic.part,
+        briefText
       );
       setMindMap(result);
       onComplete(JSON.stringify(result));
@@ -53,13 +141,18 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   }
 
   const alreadyGenerated = session?.mind_map_generated ?? false;
+  const scan = mindMap?.scan;
+  const tree = mindMap?.decisionTree;
+  const flow = mindMap?.calculationFlow;
+  const grid = mindMap?.comparisonGrid;
 
   return (
     <div>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-th-text">Decision Flow Map</h3>
+        <h3 className="text-lg font-semibold text-th-text">Rule Map</h3>
         <p className="text-sm text-th-text-muted mt-1">
-          How a tax professional thinks through {topic.topic} — step by step.
+          Classifies the Morning Brief rules into gates, math chains, and parallels — then maps each
+          into a Decision Tree, Calculation Flow, and Comparison Grid.
         </p>
       </div>
 
@@ -70,11 +163,17 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
               {error}
             </div>
           )}
+          {!briefText && (
+            <p className="mb-4 text-sm text-yellow-600 dark:text-yellow-400">
+              No Morning Brief found for today. Generate the Morning Brief first for the most accurate
+              map — or continue and the map will be built from the topic alone.
+            </p>
+          )}
           <button
             onClick={generate}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
           >
-            Generate Decision Flow
+            Generate Rule Map
           </button>
           {alreadyGenerated && (
             <button
@@ -90,85 +189,202 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
       {loading && (
         <div className="bg-th-card border border-th-border rounded-xl p-8 text-center">
           <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-th-text-muted text-sm">Building decision flow map...</p>
+          <p className="text-th-text-muted text-sm">Scanning rules and building the map...</p>
         </div>
       )}
 
       {mindMap && (
-        <div>
-          {/* Decision Flow */}
-          <div className="mb-6">
-            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-4">Decision Flow</h4>
-            <div className="relative">
-              {(Array.isArray(mindMap.decisionFlow) ? mindMap.decisionFlow : []).map((node, i) => (
-                <div key={i}>
-                  {/* Flow node */}
-                  <div className="flex gap-3">
-                    {/* Left: step number + vertical line */}
-                    <div className="flex flex-col items-center flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-blue-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                        {i + 1}
+        <div className="space-y-8">
+          {/* ── Rule Anatomy Scan ─────────────────────────────────────────── */}
+          {scan && (
+            <section>
+              <SectionTitle accent="bg-th-text-muted">Rule Anatomy Scan</SectionTitle>
+              <div className="grid gap-3 md:grid-cols-3">
+                {SCAN_COLUMNS.map(col => {
+                  const rules: ScannedRule[] = Array.isArray(scan[col.key]) ? scan[col.key] : [];
+                  return (
+                    <div key={col.key} className={`border rounded-xl p-4 ${col.card}`}>
+                      <div className="flex items-baseline justify-between mb-2">
+                        <h5 className={`text-xs font-semibold uppercase tracking-wider ${col.heading}`}>{col.label}</h5>
+                        <span className={`text-[10px] font-medium ${col.numbers}`}>{col.output}</span>
                       </div>
-                      {i < (mindMap.decisionFlow ?? []).length - 1 && (
-                        <div className="w-0.5 bg-blue-800 flex-1 min-h-[32px] mt-1" />
+                      {rules.length > 0 ? (
+                        <ul className="space-y-2">
+                          {rules.map((r, i) => (
+                            <li key={i} className="text-xs text-th-text-secondary leading-snug">
+                              <span>{s(r.rule)}</span>
+                              {s(r.numbers) && (
+                                <span className={`block font-mono text-[11px] mt-0.5 ${col.numbers}`}>{s(r.numbers)}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-th-text-faint italic">None in this brief</p>
                       )}
                     </div>
+                  );
+                })}
+              </div>
+              {Array.isArray(scan.outputPlan) && scan.outputPlan.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <span className="text-xs text-th-text-muted uppercase tracking-wider">Output plan:</span>
+                  {scan.outputPlan.map((p, i) => (
+                    <span key={i} className="text-xs font-medium px-2.5 py-1 rounded-full bg-th-input text-th-text-secondary border border-th-border">
+                      {s(p)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
-                    {/* Right: content */}
-                    <div className={`flex-1 bg-th-card border border-th-border-strong rounded-xl p-4 ${
-                      i < (mindMap.decisionFlow ?? []).length - 1 ? 'mb-2' : ''
-                    }`}>
-                      <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
-                        {typeof node.node === 'string' ? node.node : JSON.stringify(node.node)}
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                        <div className="flex-1 bg-amber-50 dark:bg-yellow-950/30 border border-amber-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-amber-700 dark:text-yellow-500 font-medium block mb-0.5">Decision</span>
-                          <span className="text-sm text-amber-900 dark:text-yellow-100 leading-snug">
-                            {typeof node.question === 'string' ? node.question : JSON.stringify(node.question)}
-                          </span>
+          {/* ── Decision Tree (green) ─────────────────────────────────────── */}
+          {tree && Array.isArray(tree.gates) && tree.gates.length > 0 && (
+            <section>
+              <SectionTitle accent="bg-emerald-500">Decision Tree</SectionTitle>
+              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl p-5">
+                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-4">
+                  Start: {s(tree.start)}
+                </div>
+
+                {tree.gates.map((gate, i) => {
+                  const branches = (tree.tiebreakers ?? []).filter(b => b.fromGate === i + 1);
+                  const isLast = i === tree.gates.length - 1;
+                  return (
+                    <div key={i}>
+                      <div className="flex gap-3">
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                            {i + 1}
+                          </div>
+                          <div className="w-0.5 bg-emerald-300 dark:bg-emerald-800 flex-1 min-h-[28px] mt-1" />
                         </div>
-                        <div className="flex-1 bg-emerald-50 dark:bg-green-950/30 border border-emerald-200 dark:border-green-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-emerald-700 dark:text-green-500 font-medium block mb-0.5">Action</span>
-                          <span className="text-sm text-emerald-900 dark:text-green-100 leading-snug">
-                            {typeof node.action === 'string' ? node.action : JSON.stringify(node.action)}
-                          </span>
+                        <div className={`flex-1 ${isLast && branches.length === 0 ? 'pb-2' : 'pb-4'}`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <div className="flex-1 bg-th-card border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">
+                              <span className="text-sm font-medium text-th-text">{s(gate.question)}</span>
+                            </div>
+                            <div className="flex-shrink-0 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2">
+                              <span className="text-xs text-red-600 dark:text-red-400">No → {s(gate.failOutcome)}</span>
+                            </div>
+                          </div>
+                          {branches.map((b, bi) => (
+                            <div key={bi} className="mt-2 ml-1 border-l-2 border-emerald-300 dark:border-emerald-800 pl-3">
+                              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Tiebreakers</span>
+                              <ol className="list-decimal pl-4 mt-1 space-y-0.5">
+                                {(Array.isArray(b.rules) ? b.rules : []).map((r, ri) => (
+                                  <li key={ri} className="text-xs text-th-text-secondary leading-snug">{s(r)}</li>
+                                ))}
+                              </ol>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
+                  );
+                })}
+
+                <div className="flex gap-3">
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm">✓</div>
+                  </div>
+                  <div className="flex-1 bg-emerald-600 rounded-lg px-3 py-2.5">
+                    <span className="text-xs font-semibold text-emerald-100 uppercase tracking-wider block mb-0.5">Success</span>
+                    <span className="text-sm font-medium text-white">{s(tree.success)}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            </section>
+          )}
 
-          {/* Reference Tables */}
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-3">Reference Framework</h4>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {REFERENCE_CONFIG.map(({ key, label, bgColor, borderColor, headingColor, emptyLabel }) => {
-                const rawItems = mindMap[key];
-                const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? [rawItems] : []);
-                return (
-                  <div key={key} className={`border rounded-xl p-4 ${bgColor} ${borderColor}`}>
-                    <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${headingColor}`}>{label}</h5>
-                    {items.length > 0 ? (
-                      <ul className="space-y-1.5">
-                        {items.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-th-text-secondary">
-                            <span className="text-th-text-faint flex-shrink-0 mt-0.5">·</span>
-                            <span className="leading-snug">{typeof item === 'string' ? item : JSON.stringify(item)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-th-text-faint italic">{emptyLabel}</p>
+          {/* ── Calculation Flow (blue) ───────────────────────────────────── */}
+          {flow && Array.isArray(flow.steps) && flow.steps.length > 0 && (
+            <section>
+              <SectionTitle accent="bg-blue-500">Calculation Flow</SectionTitle>
+              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-5 space-y-3">
+                {flow.steps.map((step, i) => (
+                  <div key={i}>
+                    <div className="flex gap-3">
+                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                        {i + 1}
+                      </div>
+                      <div className="flex-1 bg-th-card border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
+                        <div className="text-sm font-medium text-th-text mb-1">{s(step.label)}</div>
+                        <div className="font-mono text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded px-2 py-1 mb-1">
+                          {s(step.formula)}
+                        </div>
+                        <div className="text-xs text-th-text-secondary">→ {s(step.result)}</div>
+                      </div>
+                    </div>
+                    {step.decision && (
+                      <div className="ml-10 mt-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
+                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
+                          {s(step.decision.condition)}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
+                          <div className="text-emerald-700 dark:text-emerald-400">Yes → {s(step.decision.yes)}</div>
+                          <div className="text-red-600 dark:text-red-400">No → {s(step.decision.no)}</div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                ))}
+                <div className="flex gap-3 pt-1">
+                  <div className="w-7 h-7 rounded-full bg-blue-700 flex items-center justify-center text-white text-sm flex-shrink-0">=</div>
+                  <div className="flex-1 bg-blue-600 rounded-lg px-3 py-2.5">
+                    <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider block mb-0.5">Final</span>
+                    <span className="text-sm font-medium text-white">{s(flow.final)}</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── Comparison Grid (purple) ──────────────────────────────────── */}
+          {grid && Array.isArray(grid.columns) && Array.isArray(grid.rows) && grid.rows.length > 0 && (
+            <section>
+              <SectionTitle accent="bg-purple-500">Comparison Grid</SectionTitle>
+              <div className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-purple-100 dark:bg-purple-950/40">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                        Dimension
+                      </th>
+                      {grid.columns.map((c, i) => (
+                        <th key={i} className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                          {s(c)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grid.rows.map((row, ri) => {
+                      const values = Array.isArray(row.values) ? row.values : [];
+                      const allSame = values.length > 1 && values.every(v => s(v) === s(values[0]));
+                      return (
+                        <tr key={ri} className="border-t border-purple-100 dark:border-purple-900/60 odd:bg-purple-50/40 dark:odd:bg-purple-950/10">
+                          <td className="px-3 py-2 text-xs font-medium text-th-text align-top">{s(row.dimension)}</td>
+                          {grid.columns.map((_, ci) => (
+                            <td
+                              key={ci}
+                              className={`px-3 py-2 text-xs align-top ${allSame ? 'text-th-text-faint' : 'text-th-text-secondary'}`}
+                            >
+                              {s(values[ci])}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-th-text-faint mt-2">
+                Rows where values diverge across columns are the exam traps. Greyed rows are identical across all.
+              </p>
+            </section>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             <button

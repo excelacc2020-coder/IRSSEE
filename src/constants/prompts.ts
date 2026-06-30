@@ -44,41 +44,75 @@ Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 }
 `.trim();
 
-export const MIND_MAP_PROMPT = (topic: string, part: number) => `
-You are an expert IRS tax educator preparing a student for the IRS SEE exam Part ${part}.
+export const MIND_MAP_PROMPT = (topic: string, part: number, morningBrief: string) => `
+You are an EA exam tutor preparing a student for the IRS SEE exam Part ${part}. The student provides a "Morning Brief" containing their study notes on a tax topic. Your job is to analyze the rules in those notes and produce structured visual outputs that make the rules stick.
 
 Tax Year: **${TAX_YEAR}** — All thresholds, limits, and figures must reflect tax year ${TAX_YEAR}.
 
-Topic: **${topic}**
+TOPIC: ${topic}
 
-IMPORTANT INSTRUCTIONS ON DEPTH AND DETAIL:
-- Be THOROUGH and COMPREHENSIVE. This mind map should cover ALL testable aspects of the topic.
-- The decision flow should have 6-8 steps showing the complete logical chain a tax professional follows.
-- Each step's "action" field should be 2-3 sentences explaining what to do and which specific rules apply.
-- Rules, exceptions, forms, calculations, and traps lists should each have 5-8 items, not just 3-4.
-- Include SPECIFIC ${TAX_YEAR} dollar amounts, percentages, form numbers, and line references wherever applicable.
-- Do NOT summarize or abbreviate. Cover every angle that could appear on the exam.
+MORNING BRIEF (the student's study notes — analyze ONLY what is here):
+${morningBrief}
 
-Create a decision flow diagram showing how a tax professional actually thinks through this topic when working with a client or filing a return. The flow should reflect the real logical sequence of decisions made in practice, covering ALL branches and edge cases.
+━━━ STEP 1: RULE ANATOMY SCAN ━━━
+Read every rule in the Morning Brief and classify each into exactly one of three types:
+- GATE RULE: a yes/no eligibility check. Binary; determines whether the taxpayer proceeds or is disqualified (e.g., "under age 17 at year end," "must have valid SSN," "must not be claimed by another person").
+- MATH CHAIN RULE: a calculation where one number feeds the next step. No branching, only arithmetic (e.g., "$50 reduction per $1,000 over threshold," "15% of earned income above $2,500," "lesser of X, Y, or Z").
+- PARALLEL RULE: a rule that exists in two or more related topics with different values on the same dimension (e.g., CTC age cutoff is 17 but dependency age is 19; CTC requires SSN but ODC accepts ITIN).
+Do not skip any rule from the Morning Brief. If a rule could be two types, pick its primary function. Attach the exact numbers to each rule.
 
-Also include comprehensive reference tables for rules, exceptions, forms, calculations, and exam traps. Each list should have specific, exam-relevant items with concrete ${TAX_YEAR} dollar amounts, percentages, and form numbers.
+Then decide the OUTPUT PLAN. A topic may need all three, two, or one:
+- Include "Decision Tree" only if gate rules exist.
+- Include "Calculation Flow" only if math chain rules exist.
+- Include "Comparison Grid" only if parallel rules exist (or the Brief references related topics like ODC/EITC to compare).
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+━━━ STEP 2: DECISION TREE (only if gate rules exist) ━━━
+Cover every gate rule. Each gate is one yes/no question in a short phrase (under 8 words). "Yes" = PASS, flow down to the next gate. "No" = FAIL, exit to a consequence ("Does not qualify," "Check [alternative]," or "Apply tiebreakers"). Order gates as a preparer checks them (cheapest/fastest disqualifier first). Show tiebreaker rules as a sub-branch from the relevant gate. The success outcome states the credit/deduction amount.
+
+━━━ STEP 3: CALCULATION FLOW (only if math chain rules exist) ━━━
+Cover every math rule as a step-by-step chain. Each step shows one arithmetic operation with the exact formula and all threshold numbers; the output of step N feeds step N+1. Where math branches on a condition, attach a decision with both paths. Include every cap, floor, percentage, and dollar limit at the step where it applies. The final result names where it gets reported (form/line if in the Brief).
+
+━━━ STEP 4: COMPARISON GRID (only if parallel rules exist) ━━━
+Rows are shared dimensions (age test, income limit, refundability, credit amount, SSN/ITIN, relationship test, forms, phase-out, etc.). Columns are the related credits/rules. Each cell is the specific value for that credit on that dimension. If a dimension is identical across all columns, still include it with value "Same". Prioritize rows where values diverge — those are the exam traps.
+
+RULES FOR ALL OUTPUTS:
+- Never invent rules not in the Morning Brief; never skip a rule that IS in it.
+- Every number from the Morning Brief must appear in at least one output.
+- If the Brief references related topics (e.g., ODC, EITC), include them as Comparison Grid columns.
+- Keep all labels short and scannable.
+
+Return ONLY a valid JSON object (no markdown, no prose outside JSON). Omit decisionTree / calculationFlow / comparisonGrid entirely if that output type is not in the Output Plan.
 {
-  "decisionFlow": [
-    {"node": "Step 1: [Step Name]", "question": "Key yes/no or threshold question to ask at this step", "action": "Detailed explanation of what to do, which rule applies, and where to go next (2-3 sentences)"},
-    {"node": "Step 2: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 3: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 4: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 5: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 6: [Step Name]", "question": "...", "action": "..."}
-  ],
-  "rules": ["Detailed rule 1 with ${TAX_YEAR} amounts and explanation of how it works", "rule 2", "rule 3", "rule 4", "rule 5"],
-  "exceptions": ["Detailed exception 1 explaining when the general rule does NOT apply and what happens instead", "exception 2", "exception 3", "exception 4"],
-  "forms": ["Form XXXX: detailed purpose, when required, and key line numbers", "Schedule X: when required and what triggers it", "Form YYYY: purpose"],
-  "calculations": ["Complete formula with ${TAX_YEAR} threshold and step-by-step example", "Phase-out range with ${TAX_YEAR} figures and calculation method", "Example computation showing all steps"],
-  "traps": ["Detailed exam trap 1 — explain what the trap looks like and the correct approach", "trap 2", "trap 3", "trap 4", "trap 5"]
+  "scan": {
+    "gateRules": [{"rule": "short rule label", "numbers": "exact numbers/threshold, or empty string"}],
+    "mathChainRules": [{"rule": "short rule label", "numbers": "exact numbers"}],
+    "parallelRules": [{"rule": "short rule label", "numbers": "the differing values"}],
+    "outputPlan": ["Decision Tree", "Calculation Flow", "Comparison Grid"]
+  },
+  "decisionTree": {
+    "start": "What is being tested",
+    "gates": [
+      {"question": "Short yes/no question (< 8 words)", "failOutcome": "What happens on No"}
+    ],
+    "success": "Success outcome with dollar amount",
+    "tiebreakers": [
+      {"fromGate": 3, "rules": ["First tiebreaker", "Second tiebreaker", "Third tiebreaker"]}
+    ]
+  },
+  "calculationFlow": {
+    "steps": [
+      {"label": "What you calculate", "formula": "exact formula with all numbers", "result": "what this produces", "decision": {"condition": "condition with threshold", "yes": "path if true", "no": "path if false"}}
+    ],
+    "final": "End result + form/line reference"
+  },
+  "comparisonGrid": {
+    "columns": ["Credit/Rule A", "Credit/Rule B", "Credit/Rule C"],
+    "rows": [
+      {"dimension": "Age test", "values": ["value for A", "value for B", "value for C"]}
+    ]
+  }
 }
+The "decision" field on a calculation step is optional — include it only on steps where the math actually branches. The "tiebreakers" field is optional — include it only if tiebreaker rules exist.
 `.trim();
 
 export const MCQ_PROMPT = (topic: string, part: number, errorContext: string, coveredTopics: string[]) => `

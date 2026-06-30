@@ -114,19 +114,65 @@ export interface MorningBriefContent {
   errorBridge: string;
 }
 
-export interface MindMapFlowNode {
-  node: string;      // e.g., "Step 1: Determine Filing Status"
-  question: string;  // key decision question at this step
-  action: string;    // what to do / rule to apply
+// ─── Mind Map: Rule Anatomy → Decision Tree / Calculation Flow / Comparison Grid ──
+
+export type RuleType = 'gate' | 'mathChain' | 'parallel';
+
+export interface ScannedRule {
+  rule: string;      // short rule label
+  numbers: string;   // exact numbers/thresholds attached to it ("" if none)
+}
+
+export interface RuleAnatomyScan {
+  gateRules: ScannedRule[];
+  mathChainRules: ScannedRule[];
+  parallelRules: ScannedRule[];
+  outputPlan: string[]; // any of "Decision Tree" | "Calculation Flow" | "Comparison Grid"
+}
+
+export interface DecisionGate {
+  question: string;     // yes/no check, short phrase (< 8 words)
+  failOutcome: string;  // consequence box on "No"
+}
+
+export interface TiebreakerBranch {
+  fromGate: number;     // 1-based gate index this branches from
+  rules: string[];      // ordered tiebreaker rules
+}
+
+export interface DecisionTree {
+  start: string;                  // what is being tested
+  gates: DecisionGate[];
+  success: string;                // success outcome with dollar amount
+  tiebreakers?: TiebreakerBranch[];
+}
+
+export interface CalcStep {
+  label: string;        // what you calculate
+  formula: string;      // exact formula with all numbers
+  result: string;       // what this produces
+  decision?: {          // optional branch that fires after this step
+    condition: string;  // condition with threshold
+    yes: string;        // path when condition is true
+    no: string;         // path when condition is false
+  };
+}
+
+export interface CalculationFlow {
+  steps: CalcStep[];
+  final: string;        // end result + form/line reference
+}
+
+export interface ComparisonGrid {
+  columns: string[];                              // related credits/rules being compared
+  rows: { dimension: string; values: string[] }[]; // values aligned to columns
 }
 
 export interface MindMapContent {
-  decisionFlow: MindMapFlowNode[];
-  rules: string[];
-  exceptions: string[];
-  forms: string[];
-  calculations: string[];
-  traps: string[];
+  scan: RuleAnatomyScan;
+  decisionTree?: DecisionTree;
+  calculationFlow?: CalculationFlow;
+  comparisonGrid?: ComparisonGrid;
 }
 
 export type ActiveTab = 'today' | 'dashboard' | 'cards' | 'mock-exam' | 'settings';

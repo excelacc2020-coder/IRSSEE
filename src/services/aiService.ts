@@ -246,9 +246,13 @@ export async function generateMorningBrief(
 export async function generateMindMap(
   config: AIConfig,
   topic: string,
-  part: number
+  part: number,
+  morningBrief: string
 ): Promise<MindMapContent> {
-  const prompt = MIND_MAP_PROMPT(topic, part);
+  const briefInput = morningBrief.trim()
+    ? morningBrief.trim()
+    : `(No Morning Brief was provided. Use your own knowledge of "${topic}" to surface its key gate rules, math-chain rules, and parallel rules.)`;
+  const prompt = MIND_MAP_PROMPT(topic, part, briefInput);
   const raw = await callAI(config, 'mindMap', prompt);
   return parseJSON<MindMapContent>(raw);
 }
