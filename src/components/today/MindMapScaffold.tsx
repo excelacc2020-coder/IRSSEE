@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { generateMindMap } from '../../services/aiService';
-import type { User, Session, UserSettings, MindMapContent, ScannedRule, LessonTopic } from '../../types';
+import MermaidDiagram from './MermaidDiagram';
+import type {
+  User, Session, UserSettings, MindMapContent, ScannedRule,
+  DecisionTree, CalculationFlow, LessonTopic,
+} from '../../types';
 
 interface MindMapScaffoldProps {
   user: User;
@@ -19,6 +23,17 @@ function s(v: unknown): string {
   if (Array.isArray(v)) return v.map(s).join('; ');
   if (v == null) return '';
   return JSON.stringify(v);
+}
+
+/** Sanitize text for use inside a quoted Mermaid node label. */
+function mm(v: unknown): string {
+  return s(v)
+    .replace(/["\n\r]/g, ' ')      // quotes & newlines break labels
+    .replace(/[<>]/g, ' ')         // angle brackets confuse the HTML-label parser
+    .replace(/[{}|[\]]/g, ' ')     // reserved Mermaid shape characters
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140);
 }
 
 /**
@@ -55,6 +70,82 @@ function briefToText(session: Session | null): string {
   if (brief.examTraps) lines.push(`\nEXAM TRAPS: ${s(brief.examTraps)}`);
   if (brief.errorBridge) lines.push(`\nERROR BRIDGE: ${s(brief.errorBridge)}`);
   return lines.join('\n');
+}
+
+// ─── Mermaid flowchart builders ─────────────────────────────────────────────────
+
+/** Decision tree → top-down Mermaid flowchart (green gates, red fails, success). */
+function buildDecisionTreeChart(tree: DecisionTree): string {
+  const gates = Array.isArray(tree.gates) ? tree.gates : [];
+  const L: string[] = ['flowchart TD'];
+
+  // Node definitions first so shapes/classes bind reliably.
+  L.push(`  start(["${mm(tree.start) || 'Start'}"]):::start`);
+  gates.forEach((g, i) => {
+    L.push(`  g${i}{"${mm(g.question) || `Gate ${i + 1}`}"}:::gate`);
+    L.push(`  f${i}["${mm(g.failOutcome) || 'Does not qualify'}"]:::fail`);
+    (Array.isArray(tree.tiebreakers) ? tree.tiebreakers : [])
+      .filter(t => t.fromGate === i + 1)
+      .forEach((t, ti) => {
+        const text = (Array.isArray(t.rules) ? t.rules : [])
+          .map((r, ri) => `${ri + 1}. ${mm(r)}`)
+          .join(' • ');
+        L.push(`  tb${i}_${ti}["${text || 'Tiebreakers'}"]:::tie`);
+      });
+  });
+  L.push(`  success(["${mm(tree.success) || 'Qualifies'}"]):::success`);
+
+  // Edges.
+  L.push(`  start --> ${gates.length ? 'g0' : 'success'}`);
+  gates.forEach((_g, i) => {
+    L.push(`  g${i} -->|No| f${i}`);
+    L.push(`  g${i} -->|Yes| ${i < gates.length - 1 ? `g${i + 1}` : 'success'}`);
+    (Array.isArray(tree.tiebreakers) ? tree.tiebreakers : [])
+      .filter(t => t.fromGate === i + 1)
+      .forEach((_t, ti) => L.push(`  g${i} -.->|Tiebreakers| tb${i}_${ti}`));
+  });
+
+  L.push("  classDef start fill:#ecfdf5,stroke:#059669,color:#065f46;");
+  L.push("  classDef gate fill:#d1fae5,stroke:#059669,color:#065f46;");
+  L.push("  classDef fail fill:#fee2e2,stroke:#dc2626,color:#991b1b;");
+  L.push("  classDef success fill:#059669,stroke:#047857,color:#ffffff;");
+  L.push("  classDef tie fill:#fef9c3,stroke:#ca8a04,color:#713f12;");
+  return L.join('\n');
+}
+
+/** Calculation flow → top-down Mermaid flowchart (blue steps, amber branches). */
+function buildCalcFlowChart(flow: CalculationFlow): string {
+  const steps = Array.isArray(flow.steps) ? flow.steps : [];
+  const L: string[] = ['flowchart TD'];
+
+  steps.forEach((st, i) => {
+    const label = [`${i + 1}. ${mm(st.label)}`, mm(st.formula), `= ${mm(st.result)}`]
+      .filter(Boolean)
+      .join('<br/>');
+    L.push(`  s${i}["${label}"]:::step`);
+    if (st.decision) {
+      L.push(`  d${i}{"${mm(st.decision.condition) || 'Condition?'}"}:::decision`);
+      L.push(`  dy${i}["${mm(st.decision.yes)}"]:::yes`);
+      L.push(`  dn${i}["${mm(st.decision.no)}"]:::no`);
+    }
+  });
+  L.push(`  final(["${mm(flow.final) || 'Result'}"]):::final`);
+
+  steps.forEach((st, i) => {
+    L.push(`  s${i} --> ${i < steps.length - 1 ? `s${i + 1}` : 'final'}`);
+    if (st.decision) {
+      L.push(`  s${i} -.-> d${i}`);
+      L.push(`  d${i} -->|Yes| dy${i}`);
+      L.push(`  d${i} -->|No| dn${i}`);
+    }
+  });
+
+  L.push("  classDef step fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;");
+  L.push("  classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f;");
+  L.push("  classDef yes fill:#d1fae5,stroke:#059669,color:#065f46;");
+  L.push("  classDef no fill:#fee2e2,stroke:#dc2626,color:#991b1b;");
+  L.push("  classDef final fill:#2563eb,stroke:#1d4ed8,color:#ffffff;");
+  return L.join('\n');
 }
 
 // ─── Rule Anatomy Scan column config (color identity carried into each output) ──
@@ -102,6 +193,14 @@ function SectionTitle({ accent, children }: { accent: string; children: React.Re
   );
 }
 
+function EmptyOutput({ text }: { text: string }) {
+  return (
+    <div className="border border-dashed border-th-border rounded-xl p-5 text-center">
+      <p className="text-xs text-th-text-faint italic">{text}</p>
+    </div>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function MindMapScaffold({ topic, session, settings, onComplete, onContinue }: MindMapScaffoldProps) {
@@ -145,6 +244,10 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   const tree = mindMap?.decisionTree;
   const flow = mindMap?.calculationFlow;
   const grid = mindMap?.comparisonGrid;
+
+  const hasTree = !!tree && Array.isArray(tree.gates) && tree.gates.length > 0;
+  const hasFlow = !!flow && Array.isArray(flow.steps) && flow.steps.length > 0;
+  const hasGrid = !!grid && Array.isArray(grid.columns) && Array.isArray(grid.rows) && grid.rows.length > 0;
 
   return (
     <div>
@@ -240,151 +343,77 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
           )}
 
           {/* ── Decision Tree (green) ─────────────────────────────────────── */}
-          {tree && Array.isArray(tree.gates) && tree.gates.length > 0 && (
-            <section>
-              <SectionTitle accent="bg-emerald-500">Decision Tree</SectionTitle>
-              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-xl p-5">
-                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-4">
-                  Start: {s(tree.start)}
-                </div>
-
-                {tree.gates.map((gate, i) => {
-                  const branches = (tree.tiebreakers ?? []).filter(b => b.fromGate === i + 1);
-                  const isLast = i === tree.gates.length - 1;
-                  return (
-                    <div key={i}>
-                      <div className="flex gap-3">
-                        <div className="flex flex-col items-center flex-shrink-0">
-                          <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
-                            {i + 1}
-                          </div>
-                          <div className="w-0.5 bg-emerald-300 dark:bg-emerald-800 flex-1 min-h-[28px] mt-1" />
-                        </div>
-                        <div className={`flex-1 ${isLast && branches.length === 0 ? 'pb-2' : 'pb-4'}`}>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <div className="flex-1 bg-th-card border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">
-                              <span className="text-sm font-medium text-th-text">{s(gate.question)}</span>
-                            </div>
-                            <div className="flex-shrink-0 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2">
-                              <span className="text-xs text-red-600 dark:text-red-400">No → {s(gate.failOutcome)}</span>
-                            </div>
-                          </div>
-                          {branches.map((b, bi) => (
-                            <div key={bi} className="mt-2 ml-1 border-l-2 border-emerald-300 dark:border-emerald-800 pl-3">
-                              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Tiebreakers</span>
-                              <ol className="list-decimal pl-4 mt-1 space-y-0.5">
-                                {(Array.isArray(b.rules) ? b.rules : []).map((r, ri) => (
-                                  <li key={ri} className="text-xs text-th-text-secondary leading-snug">{s(r)}</li>
-                                ))}
-                              </ol>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div className="flex gap-3">
-                  <div className="flex flex-col items-center flex-shrink-0">
-                    <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm">✓</div>
-                  </div>
-                  <div className="flex-1 bg-emerald-600 rounded-lg px-3 py-2.5">
-                    <span className="text-xs font-semibold text-emerald-100 uppercase tracking-wider block mb-0.5">Success</span>
-                    <span className="text-sm font-medium text-white">{s(tree.success)}</span>
-                  </div>
-                </div>
+          <section>
+            <SectionTitle accent="bg-emerald-500">Decision Tree</SectionTitle>
+            {hasTree ? (
+              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
+                <MermaidDiagram chart={buildDecisionTreeChart(tree!)} />
               </div>
-            </section>
-          )}
+            ) : (
+              <EmptyOutput text="No gate (yes/no eligibility) rules in this brief — no decision tree needed." />
+            )}
+          </section>
 
           {/* ── Calculation Flow (blue) ───────────────────────────────────── */}
-          {flow && Array.isArray(flow.steps) && flow.steps.length > 0 && (
-            <section>
-              <SectionTitle accent="bg-blue-500">Calculation Flow</SectionTitle>
-              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl p-5 space-y-3">
-                {flow.steps.map((step, i) => (
-                  <div key={i}>
-                    <div className="flex gap-3">
-                      <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 bg-th-card border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
-                        <div className="text-sm font-medium text-th-text mb-1">{s(step.label)}</div>
-                        <div className="font-mono text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded px-2 py-1 mb-1">
-                          {s(step.formula)}
-                        </div>
-                        <div className="text-xs text-th-text-secondary">→ {s(step.result)}</div>
-                      </div>
-                    </div>
-                    {step.decision && (
-                      <div className="ml-10 mt-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2">
-                        <div className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-                          {s(step.decision.condition)}
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs">
-                          <div className="text-emerald-700 dark:text-emerald-400">Yes → {s(step.decision.yes)}</div>
-                          <div className="text-red-600 dark:text-red-400">No → {s(step.decision.no)}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div className="flex gap-3 pt-1">
-                  <div className="w-7 h-7 rounded-full bg-blue-700 flex items-center justify-center text-white text-sm flex-shrink-0">=</div>
-                  <div className="flex-1 bg-blue-600 rounded-lg px-3 py-2.5">
-                    <span className="text-xs font-semibold text-blue-100 uppercase tracking-wider block mb-0.5">Final</span>
-                    <span className="text-sm font-medium text-white">{s(flow.final)}</span>
-                  </div>
-                </div>
+          <section>
+            <SectionTitle accent="bg-blue-500">Calculation Flow</SectionTitle>
+            {hasFlow ? (
+              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
+                <MermaidDiagram chart={buildCalcFlowChart(flow!)} />
               </div>
-            </section>
-          )}
+            ) : (
+              <EmptyOutput text="No math-chain (calculation) rules in this brief — no calculation flow needed." />
+            )}
+          </section>
 
           {/* ── Comparison Grid (purple) ──────────────────────────────────── */}
-          {grid && Array.isArray(grid.columns) && Array.isArray(grid.rows) && grid.rows.length > 0 && (
-            <section>
-              <SectionTitle accent="bg-purple-500">Comparison Grid</SectionTitle>
-              <div className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-purple-100 dark:bg-purple-950/40">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                        Dimension
-                      </th>
-                      {grid.columns.map((c, i) => (
-                        <th key={i} className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
-                          {s(c)}
+          <section>
+            <SectionTitle accent="bg-purple-500">Comparison Grid</SectionTitle>
+            {hasGrid ? (
+              <>
+                <div className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-purple-100 dark:bg-purple-950/40">
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                          Dimension
                         </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {grid.rows.map((row, ri) => {
-                      const values = Array.isArray(row.values) ? row.values : [];
-                      const allSame = values.length > 1 && values.every(v => s(v) === s(values[0]));
-                      return (
-                        <tr key={ri} className="border-t border-purple-100 dark:border-purple-900/60 odd:bg-purple-50/40 dark:odd:bg-purple-950/10">
-                          <td className="px-3 py-2 text-xs font-medium text-th-text align-top">{s(row.dimension)}</td>
-                          {grid.columns.map((_, ci) => (
-                            <td
-                              key={ci}
-                              className={`px-3 py-2 text-xs align-top ${allSame ? 'text-th-text-faint' : 'text-th-text-secondary'}`}
-                            >
-                              {s(values[ci])}
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-[11px] text-th-text-faint mt-2">
-                Rows where values diverge across columns are the exam traps. Greyed rows are identical across all.
-              </p>
-            </section>
-          )}
+                        {grid!.columns.map((c, i) => (
+                          <th key={i} className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                            {s(c)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grid!.rows.map((row, ri) => {
+                        const values = Array.isArray(row.values) ? row.values : [];
+                        const allSame = values.length > 1 && values.every(v => s(v) === s(values[0]));
+                        return (
+                          <tr key={ri} className="border-t border-purple-100 dark:border-purple-900/60 odd:bg-purple-50/40 dark:odd:bg-purple-950/10">
+                            <td className="px-3 py-2 text-xs font-medium text-th-text align-top">{s(row.dimension)}</td>
+                            {grid!.columns.map((_, ci) => (
+                              <td
+                                key={ci}
+                                className={`px-3 py-2 text-xs align-top ${allSame ? 'text-th-text-faint' : 'text-th-text-secondary'}`}
+                              >
+                                {s(values[ci])}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[11px] text-th-text-faint mt-2">
+                  Rows where values diverge across columns are the exam traps. Greyed rows are identical across all.
+                </p>
+              </>
+            ) : (
+              <EmptyOutput text="No parallel (related-credit) rules in this brief — no comparison grid needed." />
+            )}
+          </section>
 
           <div className="flex items-center justify-between pt-2">
             <button
