@@ -148,9 +148,12 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
             topic={topic}
             session={session}
             settings={settings}
-            onComplete={content => handleSessionUpdate({
+            onComplete={(content, topicStories) => handleSessionUpdate({
               morning_brief_viewed: true,
-              morning_brief_content: JSON.stringify(content)
+              morning_brief_content: JSON.stringify(content),
+              // Only present on a Refresh (regenerate), which reconciles/prunes
+              // orphaned stories. The "Continue to Videos" call omits it.
+              ...(topicStories ? { topic_stories: topicStories } : {}),
             })}
             onStorySave={(heading, story) => handleSessionUpdate({
               topic_stories: { ...(session?.topic_stories ?? {}), [heading]: story },

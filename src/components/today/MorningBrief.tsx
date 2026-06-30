@@ -9,7 +9,7 @@ interface MorningBriefProps {
   topic: LessonTopic;
   session: Session | null;
   settings: UserSettings | null;
-  onComplete: (content: MorningBriefContent) => void;
+  onComplete: (content: MorningBriefContent, topicStories?: Record<string, string>) => void;
   onStorySave: (heading: string, story: string) => void;
 }
 
@@ -138,8 +138,23 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
       );
       // Save locally for instant display
       setBrief(result);
+
+      // Reconcile stories with the regenerated brief. Refresh can return different
+      // section headings, which would orphan stories keyed by the old heading
+      // (left in the DB but unreachable from any visible "View Story" button).
+      // Keep only stories whose heading still exists in the new brief.
+      const newHeadings = new Set(
+        (result.sections ?? []).map(s =>
+          typeof s.heading === 'string' ? s.heading : JSON.stringify(s.heading)
+        )
+      );
+      const prunedStories = Object.fromEntries(
+        Object.entries(stories).filter(([heading]) => newHeadings.has(heading))
+      );
+      setLocalStories(prunedStories);
+
       // Persist to Supabase via onComplete → upsertSession in TodayTab
-      onComplete(result);
+      onComplete(result, prunedStories);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate morning brief');
     } finally {
