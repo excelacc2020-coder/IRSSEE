@@ -81,7 +81,7 @@ export interface AnkiCard {
   created_at: string;
 }
 
-export type AIProvider = 'claude' | 'groq' | 'deepseek' | 'gemini';
+export type AIProvider = 'claude' | 'groq' | 'deepseek' | 'gemini' | 'zai';
 
 export interface UserSettings {
   id: string;

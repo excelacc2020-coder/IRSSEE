@@ -32,6 +32,11 @@ const PROVIDERS: { id: AIProvider; label: string; models: string[] }[] = [
     label: 'Google Gemini',
     models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
   },
+  {
+    id: 'zai',
+    label: 'Z.ai (GLM)',
+    models: ['glm-5.2', 'glm-5.1', 'glm-4.7-flash', 'glm-4.5-flash'],
+  },
 ];
 
 export default function SettingsTab({ user, settings, onSettingsChange }: SettingsTabProps) {

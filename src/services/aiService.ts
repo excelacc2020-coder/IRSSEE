@@ -154,6 +154,9 @@ async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise
       return callOpenAICompat('https://api.groq.com/openai/v1', config.apiKey, model, prompt, maxTokens);
     case 'deepseek':
       return callOpenAICompat('https://api.deepseek.com/v1', config.apiKey, model, prompt, maxTokens);
+    case 'zai':
+      // Z.ai (Zhipu GLM) — OpenAI-compatible chat completions endpoint
+      return callOpenAICompat('https://api.z.ai/api/paas/v4', config.apiKey, model, prompt, maxTokens);
     case 'gemini':
       return callGemini(config.apiKey, model, prompt, maxTokens);
   }
