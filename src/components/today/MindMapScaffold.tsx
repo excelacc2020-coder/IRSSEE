@@ -25,11 +25,13 @@ function s(v: unknown): string {
   return JSON.stringify(v);
 }
 
-/** Sanitize text for use inside a quoted Mermaid node label. */
+/** Sanitize text for use inside a quoted Mermaid node label (htmlLabels on). */
 function mm(v: unknown): string {
   return s(v)
     .replace(/["\n\r]/g, ' ')      // quotes & newlines break labels
-    .replace(/[<>]/g, ' ')         // angle brackets confuse the HTML-label parser
+    .replace(/&/g, '&amp;')        // escape entities — htmlLabels renders them
+    .replace(/</g, '&lt;')         // preserve "<"/">" (e.g. "AGI > $200k") as text
+    .replace(/>/g, '&gt;')
     .replace(/[{}|[\]]/g, ' ')     // reserved Mermaid shape characters
     .replace(/\s+/g, ' ')
     .trim()
@@ -116,27 +118,42 @@ function buildDecisionTreeChart(tree: DecisionTree): string {
 /** Calculation flow → top-down Mermaid flowchart (blue steps, amber branches). */
 function buildCalcFlowChart(flow: CalculationFlow): string {
   const steps = Array.isArray(flow.steps) ? flow.steps : [];
+
+  // A decision only renders if it has a real condition AND at least one branch.
+  // The model sometimes emits empty placeholder decisions ({condition:"",yes:"",
+  // no:""}); empty-label nodes ([""]) make Mermaid fail to parse the whole chart.
+  const decisions = steps.map(st => {
+    if (!st.decision) return null;
+    const condition = mm(st.decision.condition);
+    const yes = mm(st.decision.yes);
+    const no = mm(st.decision.no);
+    return condition && (yes || no) ? { condition, yes, no } : null;
+  });
+
   const L: string[] = ['flowchart TD'];
 
   steps.forEach((st, i) => {
     const label = [`${i + 1}. ${mm(st.label)}`, mm(st.formula), `= ${mm(st.result)}`]
-      .filter(Boolean)
+      .map(x => x.trim())
+      .filter(x => x && x !== '=' && x !== `${i + 1}.`)
       .join('<br/>');
-    L.push(`  s${i}["${label}"]:::step`);
-    if (st.decision) {
-      L.push(`  d${i}{"${mm(st.decision.condition) || 'Condition?'}"}:::decision`);
-      L.push(`  dy${i}["${mm(st.decision.yes)}"]:::yes`);
-      L.push(`  dn${i}["${mm(st.decision.no)}"]:::no`);
+    L.push(`  s${i}["${label || `Step ${i + 1}`}"]:::step`);
+    const d = decisions[i];
+    if (d) {
+      L.push(`  d${i}{"${d.condition}"}:::decision`);
+      if (d.yes) L.push(`  dy${i}["${d.yes}"]:::yes`);
+      if (d.no) L.push(`  dn${i}["${d.no}"]:::no`);
     }
   });
   L.push(`  final(["${mm(flow.final) || 'Result'}"]):::final`);
 
-  steps.forEach((st, i) => {
+  steps.forEach((_st, i) => {
     L.push(`  s${i} --> ${i < steps.length - 1 ? `s${i + 1}` : 'final'}`);
-    if (st.decision) {
+    const d = decisions[i];
+    if (d) {
       L.push(`  s${i} -.-> d${i}`);
-      L.push(`  d${i} -->|Yes| dy${i}`);
-      L.push(`  d${i} -->|No| dn${i}`);
+      if (d.yes) L.push(`  d${i} -->|Yes| dy${i}`);
+      if (d.no) L.push(`  d${i} -->|No| dn${i}`);
     }
   });
 
@@ -197,6 +214,43 @@ function EmptyOutput({ text }: { text: string }) {
   return (
     <div className="border border-dashed border-th-border rounded-xl p-5 text-center">
       <p className="text-xs text-th-text-faint italic">{text}</p>
+    </div>
+  );
+}
+
+/**
+ * Tabbed frame for a set of diagrams — one tab per process, only the active
+ * diagram is rendered, keeping the page compact instead of stacking flowcharts.
+ */
+function DiagramTabs({ items, color }: { items: { title: string; chart: string }[]; color: 'emerald' | 'blue' }) {
+  const [active, setActive] = useState(0);
+  if (items.length === 0) return null;
+  const idx = Math.min(active, items.length - 1);
+  const activeCls =
+    color === 'emerald'
+      ? 'bg-emerald-600 border-emerald-600 text-white'
+      : 'bg-blue-600 border-blue-600 text-white';
+
+  return (
+    <div>
+      {items.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {items.map((it, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                i === idx
+                  ? activeCls
+                  : 'border-th-border text-th-text-muted hover:text-th-text hover:border-th-border-strong'
+              }`}
+            >
+              {it.title || `#${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+      <MermaidDiagram key={idx} chart={items[idx].chart} />
     </div>
   );
 }
@@ -352,17 +406,14 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
               {renderableTrees.length > 1 ? 'Decision Trees' : 'Decision Tree'}
             </SectionTitle>
             {hasTree ? (
-              <div className="space-y-4">
-                {renderableTrees.map((t, i) => (
-                  <div key={i} className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
-                    {s(t.title) && (
-                      <h5 className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-2">
-                        {s(t.title)}
-                      </h5>
-                    )}
-                    <MermaidDiagram chart={buildDecisionTreeChart(t)} />
-                  </div>
-                ))}
+              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
+                <DiagramTabs
+                  color="emerald"
+                  items={renderableTrees.map((t, i) => ({
+                    title: s(t.title) || `Tree ${i + 1}`,
+                    chart: buildDecisionTreeChart(t),
+                  }))}
+                />
               </div>
             ) : (
               <EmptyOutput text="No gate (yes/no eligibility) rules in this brief — no decision tree needed." />
@@ -375,17 +426,14 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
               {renderableFlows.length > 1 ? 'Calculation Flows' : 'Calculation Flow'}
             </SectionTitle>
             {hasFlow ? (
-              <div className="space-y-4">
-                {renderableFlows.map((f, i) => (
-                  <div key={i} className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
-                    {s(f.title) && (
-                      <h5 className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-2">
-                        {s(f.title)}
-                      </h5>
-                    )}
-                    <MermaidDiagram chart={buildCalcFlowChart(f)} />
-                  </div>
-                ))}
+              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
+                <DiagramTabs
+                  color="blue"
+                  items={renderableFlows.map((f, i) => ({
+                    title: s(f.title) || `Flow ${i + 1}`,
+                    chart: buildCalcFlowChart(f),
+                  }))}
+                />
               </div>
             ) : (
               <EmptyOutput text="No math-chain (calculation) rules in this brief — no calculation flow needed." />

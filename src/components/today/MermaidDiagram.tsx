@@ -24,6 +24,7 @@ function loadMermaid(): Promise<any> {
       mermaid.initialize({
         startOnLoad: false,
         securityLevel: 'loose',
+        htmlLabels: true,
         flowchart: { htmlLabels: true, curve: 'basis', useMaxWidth: true },
       });
       return mermaid;
@@ -36,17 +37,18 @@ let idCounter = 0;
 
 export default function MermaidDiagram({ chart }: { chart: string }) {
   const [svg, setSvg] = useState('');
-  const [failed, setFailed] = useState(false);
+  const [errMsg, setErrMsg] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setFailed(false);
+    setErrMsg('');
     setSvg('');
 
     const isDark =
       typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-    const themed = `%%{init: {'theme':'${isDark ? 'dark' : 'base'}'}}%%\n${chart}`;
+    const themed =
+      `%%{init: {'theme':'${isDark ? 'dark' : 'base'}','flowchart':{'htmlLabels':true}}}%%\n${chart}`;
     const renderId = `mmd-${++idCounter}`;
 
     loadMermaid()
@@ -54,8 +56,8 @@ export default function MermaidDiagram({ chart }: { chart: string }) {
       .then(({ svg }: { svg: string }) => {
         if (!cancelled) setSvg(svg);
       })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
+      .catch((e: unknown) => {
+        if (!cancelled) setErrMsg(e instanceof Error ? e.message : String(e));
       });
 
     return () => {
@@ -63,13 +65,19 @@ export default function MermaidDiagram({ chart }: { chart: string }) {
     };
   }, [chart]);
 
-  // Fallback: if the diagram fails to render, show the raw definition so the
-  // information is never lost (e.g. CDN blocked or a malformed chart string).
-  if (failed) {
+  // Fallback: surface the actual error (so it can be diagnosed) and keep the
+  // raw definition available in a collapsible block — information is never lost.
+  if (errMsg) {
     return (
-      <pre className="text-xs text-th-text-secondary whitespace-pre-wrap bg-th-input rounded-lg p-3 overflow-x-auto">
-        {chart}
-      </pre>
+      <div className="text-xs">
+        <p className="text-red-600 dark:text-red-400 mb-1">Diagram couldn’t render: {errMsg}</p>
+        <details>
+          <summary className="text-th-text-faint cursor-pointer">Show diagram source</summary>
+          <pre className="text-th-text-secondary whitespace-pre-wrap bg-th-input rounded-lg p-3 mt-1 overflow-x-auto">
+            {chart}
+          </pre>
+        </details>
+      </div>
     );
   }
 
