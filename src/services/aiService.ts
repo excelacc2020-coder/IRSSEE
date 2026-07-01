@@ -141,14 +141,16 @@ async function callGemini(apiKey: string, model: string, prompt: string, maxToke
   return data.candidates[0]?.content?.parts[0]?.text ?? '';
 }
 
-// Token budgets per task — expanded prompts produce much longer structured JSON
+// Token budgets per task. Kept within Claude Opus's output cap so the same
+// values are safe across providers. Reasoning models (e.g. glm-5.2) spend part
+// of this budget on hidden reasoning, so the heavier tasks need extra headroom.
 const TASK_TOKEN_LIMITS: Record<TaskType, number> = {
-  morningBrief: 12288,  // many sections with detailed items + overview
-  mindMap:      12288,  // 6-8 decision steps + 5 reference lists
-  mcq:          12288,  // 200-300 word scenario + 6 questions with comprehensive explanations
-  ankiCards:     8192,  // 8-12 detailed cards
+  morningBrief: 16384,  // many sections with detailed items + overview
+  mindMap:      16384,  // rule scan + multiple decision trees / calc flows
+  mcq:          16384,  // 200-300 word scenario + 6 questions with comprehensive explanations
+  ankiCards:    12288,  // 8-12 detailed cards
   categorizeError: 1024, // single short JSON object
-  story:        12288,  // continuous narrative + 3 worked MCQ solutions
+  story:        24576,  // long narrative + 3 worked MCQs, plus reasoning headroom
 };
 
 async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise<string> {
