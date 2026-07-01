@@ -8,7 +8,7 @@ import MockExamTab from './components/tabs/MockExamTab';
 import SettingsTab from './components/tabs/SettingsTab';
 import AuthGate from './components/AuthGate';
 import { getSession, onAuthStateChange } from './services/authService';
-import { getAllSessions, getUserSettings } from './services/storageService';
+import { getAllSessions, getUserSettings, upsertUserSettings } from './services/storageService';
 import type { ActiveTab, User, Session, UserSettings } from './types';
 
 export default function App() {
@@ -72,6 +72,14 @@ export default function App() {
     }
   }, [user, loadUserData]);
 
+  const handleTopicOrderChange = useCallback(async (order: number[]) => {
+    if (!user) return;
+    // Optimistic local update so the drag result shows instantly.
+    setSettings(prev => (prev ? { ...prev, topic_order: order } : prev));
+    await upsertUserSettings(user.id, { topic_order: order });
+    refreshData();
+  }, [user, refreshData]);
+
   if (loadingAuth) {
     return (
       <div className="min-h-screen bg-th-bg flex items-center justify-center text-th-text-muted">
@@ -92,6 +100,8 @@ export default function App() {
         currentDay={settings?.current_day ?? 1}
         sessions={sessions}
         onDaySelect={setViewingDay}
+        topicOrder={settings?.topic_order ?? null}
+        onTopicOrderChange={handleTopicOrderChange}
         theme={theme}
         toggleTheme={toggleTheme}
       />

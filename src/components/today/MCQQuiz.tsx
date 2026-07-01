@@ -10,16 +10,20 @@ interface MCQQuizProps {
   session: Session | null;
   settings: UserSettings | null;
   onComplete: (questions: MCQQuestion[], answers: Record<number, string>, score: number, scenario: string) => void;
+  onGenerate: (questions: MCQQuestion[], scenario: string) => void;
+  onAnswer: (answers: Record<number, string>) => void;
   onContinue: () => void;
 }
 
 const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
 
-export default function MCQQuiz({ user, topic, session, settings, onComplete, onContinue }: MCQQuizProps) {
+export default function MCQQuiz({ user, topic, session, settings, onComplete, onGenerate, onAnswer, onContinue }: MCQQuizProps) {
   const existingQuestions = parseQuizQuestions(session?.quiz_questions);
   const existingAnswers = parseQuizAnswers(session?.quiz_answers);
   const existingScenario = parseQuizScenario(session?.quiz_scenario ?? '');
-  const alreadySubmitted = existingQuestions.length > 0 && Object.keys(existingAnswers).length > 0;
+  // A quiz is "submitted" only once it has been scored. Persisted-but-unscored
+  // quizzes (generated or partially answered) must reopen in answer mode.
+  const alreadySubmitted = existingQuestions.length > 0 && session?.quiz_score != null;
 
   const [scenario, setScenario] = useState<string>(existingScenario);
   const [questions, setQuestions] = useState<MCQQuestion[]>(existingQuestions);
@@ -56,6 +60,8 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
       setAnswers({});
       setSubmitted(false);
       setReviewMode(false);
+      // Persist immediately so the quiz survives tab/phase switches before submit.
+      onGenerate(mcqSet.questions, mcqSet.scenario);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate questions');
     } finally {
@@ -247,7 +253,12 @@ export default function MCQQuiz({ user, topic, session, settings, onComplete, on
                   return (
                     <button
                       key={key}
-                      onClick={() => !submitted && setAnswers(prev => ({ ...prev, [q.id]: key }))}
+                      onClick={() => {
+                        if (submitted) return;
+                        const next = { ...answers, [q.id]: key };
+                        setAnswers(next);
+                        onAnswer(next);
+                      }}
                       disabled={submitted}
                       className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors text-sm ${optionStyle} ${
                         submitted ? 'cursor-default' : 'cursor-pointer'
