@@ -22,6 +22,7 @@ export interface Session {
   part: 1 | 2 | 3;
   morning_brief_viewed: boolean;
   morning_brief_content?: string;
+  topic_stories?: Record<string, string>; // section heading -> generated story (markdown)
   study_notes: string;
   mind_map_generated: boolean;
   mind_map_content: string;
@@ -80,7 +81,7 @@ export interface AnkiCard {
   created_at: string;
 }
 
-export type AIProvider = 'claude' | 'groq' | 'deepseek' | 'gemini';
+export type AIProvider = 'claude' | 'groq' | 'deepseek' | 'gemini' | 'zai';
 
 export interface UserSettings {
   id: string;
@@ -113,19 +114,70 @@ export interface MorningBriefContent {
   errorBridge: string;
 }
 
-export interface MindMapFlowNode {
-  node: string;      // e.g., "Step 1: Determine Filing Status"
-  question: string;  // key decision question at this step
-  action: string;    // what to do / rule to apply
+// ─── Mind Map: Rule Anatomy → Decision Tree / Calculation Flow / Comparison Grid ──
+
+export type RuleType = 'gate' | 'mathChain' | 'parallel';
+
+export interface ScannedRule {
+  rule: string;      // short rule label
+  numbers: string;   // exact numbers/thresholds attached to it ("" if none)
+}
+
+export interface RuleAnatomyScan {
+  gateRules: ScannedRule[];
+  mathChainRules: ScannedRule[];
+  parallelRules: ScannedRule[];
+  outputPlan: string[]; // any of "Decision Tree" | "Calculation Flow" | "Comparison Grid"
+}
+
+export interface DecisionGate {
+  question: string;     // yes/no check, short phrase (< 8 words)
+  failOutcome: string;  // consequence box on "No"
+}
+
+export interface TiebreakerBranch {
+  fromGate: number;     // 1-based gate index this branches from
+  rules: string[];      // ordered tiebreaker rules
+}
+
+export interface DecisionTree {
+  title?: string;                 // the credit/status/test this tree resolves
+  start: string;                  // what is being tested
+  gates: DecisionGate[];
+  success: string;                // success outcome with dollar amount
+  tiebreakers?: TiebreakerBranch[];
+}
+
+export interface CalcStep {
+  label: string;        // what you calculate
+  formula: string;      // exact formula with all numbers
+  result: string;       // what this produces
+  decision?: {          // optional branch that fires after this step
+    condition: string;  // condition with threshold
+    yes: string;        // path when condition is true
+    no: string;         // path when condition is false
+  };
+}
+
+export interface CalculationFlow {
+  title?: string;       // the credit/amount this flow computes
+  steps: CalcStep[];
+  final: string;        // end result + form/line reference
+}
+
+export interface ComparisonGrid {
+  columns: string[];                              // related credits/rules being compared
+  rows: { dimension: string; values: string[] }[]; // values aligned to columns
 }
 
 export interface MindMapContent {
-  decisionFlow: MindMapFlowNode[];
-  rules: string[];
-  exceptions: string[];
-  forms: string[];
-  calculations: string[];
-  traps: string[];
+  scan: RuleAnatomyScan;
+  decisionTrees?: DecisionTree[];   // one tree per distinct gated process
+  calculationFlows?: CalculationFlow[]; // one flow per distinct calculation
+  comparisonGrid?: ComparisonGrid;
+  // Legacy single-object fields (pre-array maps) — normalized on read.
+  decisionTree?: DecisionTree;
+  calculationFlow?: CalculationFlow;
 }
 
 export type ActiveTab = 'today' | 'dashboard' | 'cards' | 'mock-exam' | 'settings';

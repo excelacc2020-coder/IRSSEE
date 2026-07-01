@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { upsertUserSettings, resetAllProgress } from '../../services/storageService';
-import { testConnection } from '../../services/aiService';
+import { testConnection, refreshModels, PROVIDER_TIERS } from '../../services/aiService';
+import type { TaskTier } from '../../services/aiService';
 import { supabase } from '../../lib/supabase';
 import { signOut } from '../../services/authService';
 import type { User, UserSettings, AIProvider } from '../../types';
@@ -11,38 +12,33 @@ interface SettingsTabProps {
   onSettingsChange: () => void;
 }
 
-const PROVIDERS: { id: AIProvider; label: string; models: string[] }[] = [
-  {
-    id: 'claude',
-    label: 'Claude (Anthropic)',
-    models: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
-  },
-  {
-    id: 'groq',
-    label: 'Groq',
-    models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'llama3-8b-8192'],
-  },
-  {
-    id: 'deepseek',
-    label: 'DeepSeek',
-    models: ['deepseek-chat', 'deepseek-reasoner'],
-  },
-  {
-    id: 'gemini',
-    label: 'Google Gemini',
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite'],
-  },
+const PROVIDERS: { id: AIProvider; label: string }[] = [
+  { id: 'claude',   label: 'Claude (Anthropic)' },
+  { id: 'groq',     label: 'Groq' },
+  { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'gemini',   label: 'Google Gemini' },
+  { id: 'zai',      label: 'Z.ai (GLM)' },
+];
+
+const TIER_LABELS: [TaskTier, string][] = [
+  ['heavy',     'Briefs / Maps / Cards / Story'],
+  ['reasoning', 'MCQ generation'],
+  ['light',     'Error tagging'],
 ];
 
 export default function SettingsTab({ user, settings, onSettingsChange }: SettingsTabProps) {
   const [provider, setProvider] = useState<AIProvider>(settings?.ai_provider ?? 'claude');
   const [apiKey, setApiKey] = useState(settings?.ai_api_key ?? '');
-  const [model, setModel] = useState(settings?.ai_model ?? 'claude-opus-4-6');
   const [currentDay, setCurrentDay] = useState(settings?.current_day ?? 1);
+  const [currentTiers, setCurrentTiers] = useState<Record<TaskTier, string>>(
+    () => ({ ...PROVIDER_TIERS[settings?.ai_provider ?? 'claude'] })
+  );
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<'success' | 'fail' | null>(null);
   const [testError, setTestError] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState<string>('');
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -52,8 +48,8 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
     if (settings) {
       setProvider(settings.ai_provider);
       setApiKey(settings.ai_api_key);
-      setModel(settings.ai_model);
       setCurrentDay(settings.current_day);
+      setCurrentTiers({ ...PROVIDER_TIERS[settings.ai_provider] });
     }
   }, [settings]);
 
@@ -64,12 +60,11 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
     });
   }, []);
 
-  const providerModels = PROVIDERS.find(p => p.id === provider)?.models ?? [];
-
   function handleProviderChange(p: AIProvider) {
     setProvider(p);
-    setModel(PROVIDERS.find(pr => pr.id === p)?.models[0] ?? '');
+    setCurrentTiers({ ...PROVIDER_TIERS[p] });
     setTestResult(null);
+    setRefreshMsg('');
   }
 
   async function handleSave() {
@@ -79,7 +74,7 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
       await upsertUserSettings(user.id, {
         ai_provider: provider,
         ai_api_key: apiKey,
-        ai_model: model,
+        ai_model: currentTiers.heavy, // store the heavy-tier model for DB compat
         current_day: currentDay,
       });
       setSaved(true);
@@ -94,10 +89,23 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
     setTesting(true);
     setTestResult(null);
     setTestError('');
-    const result = await testConnection({ provider, apiKey, model });
+    const result = await testConnection({ provider, apiKey, model: currentTiers.heavy });
     setTestResult(result.ok ? 'success' : 'fail');
     if (!result.ok && result.error) setTestError(result.error);
     setTesting(false);
+  }
+
+  async function handleRefreshModels() {
+    setRefreshing(true);
+    setRefreshMsg('');
+    const { models, tiers } = await refreshModels(provider, apiKey);
+    setCurrentTiers(tiers);
+    setRefreshing(false);
+    setRefreshMsg(
+      models.length > 0
+        ? `Found ${models.length} models — routing updated`
+        : 'Could not reach models endpoint — defaults kept'
+    );
   }
 
   async function handleReset() {
@@ -145,11 +153,6 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
                 </button>
               ))}
             </div>
-            {provider === 'claude' && (
-              <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
-                Smart Hybrid routing: Opus 4.6 for briefs/mind maps/cards, Haiku 4.5 for MCQs/categorization
-              </p>
-            )}
           </div>
 
           <div>
@@ -167,18 +170,29 @@ export default function SettingsTab({ user, settings, onSettingsChange }: Settin
           </div>
 
           <div>
-            <label className="block text-xs text-th-text-muted mb-1.5">
-              Model {provider === 'claude' ? '(default — overridden by Smart Hybrid)' : ''}
-            </label>
-            <select
-              value={model}
-              onChange={e => setModel(e.target.value)}
-              className="w-full bg-th-input border border-th-border-strong rounded-lg px-3 py-2.5 text-th-text-secondary text-sm focus:outline-none focus:border-blue-500"
-            >
-              {providerModels.map(m => (
-                <option key={m} value={m}>{m}</option>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs text-th-text-muted">Smart Model Routing</label>
+              <button
+                onClick={handleRefreshModels}
+                disabled={!apiKey || refreshing}
+                className="text-xs text-blue-500 hover:text-blue-400 disabled:text-th-text-faint disabled:cursor-not-allowed transition-colors"
+              >
+                {refreshing ? 'Fetching...' : 'Refresh Models'}
+              </button>
+            </div>
+            <div className="bg-th-input border border-th-border-strong rounded-lg p-3 space-y-2">
+              {TIER_LABELS.map(([tier, label]) => (
+                <div key={tier} className="flex items-baseline gap-3">
+                  <span className="text-xs text-th-text-muted w-40 flex-shrink-0">{label}</span>
+                  <span className="text-xs font-mono text-th-text truncate">{currentTiers[tier]}</span>
+                </div>
               ))}
-            </select>
+            </div>
+            {refreshMsg && (
+              <p className={`mt-1.5 text-xs ${refreshMsg.startsWith('Could') ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400'}`}>
+                {refreshMsg}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

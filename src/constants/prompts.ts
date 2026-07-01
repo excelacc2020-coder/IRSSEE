@@ -44,41 +44,84 @@ Return ONLY a valid JSON object (no markdown, no explanation outside JSON):
 }
 `.trim();
 
-export const MIND_MAP_PROMPT = (topic: string, part: number) => `
-You are an expert IRS tax educator preparing a student for the IRS SEE exam Part ${part}.
+export const MIND_MAP_PROMPT = (topic: string, part: number, morningBrief: string) => `
+You are an EA exam tutor preparing a student for the IRS SEE exam Part ${part}. The student provides a "Morning Brief" containing their study notes on a tax topic. Your job is to analyze the rules in those notes and produce structured visual outputs that make the rules stick.
 
 Tax Year: **${TAX_YEAR}** — All thresholds, limits, and figures must reflect tax year ${TAX_YEAR}.
 
-Topic: **${topic}**
+TOPIC: ${topic}
 
-IMPORTANT INSTRUCTIONS ON DEPTH AND DETAIL:
-- Be THOROUGH and COMPREHENSIVE. This mind map should cover ALL testable aspects of the topic.
-- The decision flow should have 6-8 steps showing the complete logical chain a tax professional follows.
-- Each step's "action" field should be 2-3 sentences explaining what to do and which specific rules apply.
-- Rules, exceptions, forms, calculations, and traps lists should each have 5-8 items, not just 3-4.
-- Include SPECIFIC ${TAX_YEAR} dollar amounts, percentages, form numbers, and line references wherever applicable.
-- Do NOT summarize or abbreviate. Cover every angle that could appear on the exam.
+MORNING BRIEF (the student's study notes — analyze ONLY what is here):
+${morningBrief}
 
-Create a decision flow diagram showing how a tax professional actually thinks through this topic when working with a client or filing a return. The flow should reflect the real logical sequence of decisions made in practice, covering ALL branches and edge cases.
+━━━ STEP 1: RULE ANATOMY SCAN ━━━
+Read every rule in the Morning Brief and classify each into exactly one of three types:
+- GATE RULE: a yes/no eligibility check. Binary; determines whether the taxpayer proceeds or is disqualified (e.g., "under age 17 at year end," "must have valid SSN," "must not be claimed by another person").
+- MATH CHAIN RULE: a calculation where one number feeds the next step. No branching, only arithmetic (e.g., "$50 reduction per $1,000 over threshold," "15% of earned income above $2,500," "lesser of X, Y, or Z").
+- PARALLEL RULE: a rule that exists in two or more related topics with different values on the same dimension (e.g., CTC age cutoff is 17 but dependency age is 19; CTC requires SSN but ODC accepts ITIN).
+Do not skip any rule from the Morning Brief. If a rule could be two types, pick its primary function. Attach the exact numbers to each rule.
 
-Also include comprehensive reference tables for rules, exceptions, forms, calculations, and exam traps. Each list should have specific, exam-relevant items with concrete ${TAX_YEAR} dollar amounts, percentages, and form numbers.
+Then decide the OUTPUT PLAN. A topic may need all three, two, or one:
+- Include "Decision Tree" only if gate rules exist.
+- Include "Calculation Flow" only if math chain rules exist.
+- Include "Comparison Grid" only if parallel rules exist (or the Brief references related topics like ODC/EITC to compare).
 
-Return ONLY a valid JSON object (no markdown, no explanation):
+━━━ STEP 2: DECISION TREES (only if gate rules exist) ━━━
+Produce a SEPARATE decision tree for each distinct credit, filing status, or eligibility TEST in the brief — do not chain unrelated processes into one tree. For example, "Filing Status & Dependents" yields separate trees for Head of Household, Qualifying Child, and Qualifying Relative. Give each tree a short title naming what it resolves.
+Within each tree: each gate is one yes/no question in a short phrase (under 8 words). "Yes" = PASS, flow to the next gate. "No" = FAIL, exit to a consequence ("Does not qualify," "Check [alternative]," or "Apply tiebreakers"). Order gates as a preparer checks them (fastest disqualifier first). Show tiebreaker rules as a sub-branch from the relevant gate. The success outcome states the credit/deduction amount.
+CRITICAL: every gate rule listed in the Rule Anatomy Scan must appear as a gate in exactly one of these trees. Do not drop any gate rule.
+
+━━━ STEP 3: CALCULATION FLOWS (only if math chain rules exist) ━━━
+Produce a SEPARATE calculation flow for each distinct amount being computed (e.g., the refundable portion vs. the phase-out reduction are separate flows). Give each a short title. Within each flow, each step shows one arithmetic operation with the exact formula and all threshold numbers; the output of step N feeds step N+1. Where math branches on a condition, attach a decision with both paths. Include every cap, floor, percentage, and dollar limit at the step where it applies. The final result names where it gets reported (form/line if in the Brief).
+CRITICAL: every math-chain rule from the Rule Anatomy Scan must appear in one of these flows.
+
+━━━ STEP 4: COMPARISON GRID (only if parallel rules exist) ━━━
+Rows are shared dimensions (age test, income limit, refundability, credit amount, SSN/ITIN, relationship test, forms, phase-out, etc.). Columns are the related credits/rules. Each cell is the specific value for that credit on that dimension. If a dimension is identical across all columns, still include it with value "Same". Prioritize rows where values diverge — those are the exam traps.
+
+RULES FOR ALL OUTPUTS:
+- Never invent rules not in the Morning Brief; never skip a rule that IS in it.
+- Every number from the Morning Brief must appear in at least one output.
+- If the Brief references related topics (e.g., ODC, EITC), include them as Comparison Grid columns.
+- Keep all labels short and scannable.
+
+Return ONLY a valid JSON object (no markdown, no prose outside JSON). Omit decisionTrees / calculationFlows / comparisonGrid entirely if that output type is not in the Output Plan. "decisionTrees" and "calculationFlows" are ARRAYS — include one entry per distinct process/calculation.
 {
-  "decisionFlow": [
-    {"node": "Step 1: [Step Name]", "question": "Key yes/no or threshold question to ask at this step", "action": "Detailed explanation of what to do, which rule applies, and where to go next (2-3 sentences)"},
-    {"node": "Step 2: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 3: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 4: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 5: [Step Name]", "question": "...", "action": "..."},
-    {"node": "Step 6: [Step Name]", "question": "...", "action": "..."}
+  "scan": {
+    "gateRules": [{"rule": "short rule label", "numbers": "exact numbers/threshold, or empty string"}],
+    "mathChainRules": [{"rule": "short rule label", "numbers": "exact numbers"}],
+    "parallelRules": [{"rule": "short rule label", "numbers": "the differing values"}],
+    "outputPlan": ["Decision Tree", "Calculation Flow", "Comparison Grid"]
+  },
+  "decisionTrees": [
+    {
+      "title": "What this tree resolves (e.g., Head of Household)",
+      "start": "What is being tested",
+      "gates": [
+        {"question": "Short yes/no question (< 8 words)", "failOutcome": "What happens on No"}
+      ],
+      "success": "Success outcome with dollar amount",
+      "tiebreakers": [
+        {"fromGate": 3, "rules": ["First tiebreaker", "Second tiebreaker", "Third tiebreaker"]}
+      ]
+    }
   ],
-  "rules": ["Detailed rule 1 with ${TAX_YEAR} amounts and explanation of how it works", "rule 2", "rule 3", "rule 4", "rule 5"],
-  "exceptions": ["Detailed exception 1 explaining when the general rule does NOT apply and what happens instead", "exception 2", "exception 3", "exception 4"],
-  "forms": ["Form XXXX: detailed purpose, when required, and key line numbers", "Schedule X: when required and what triggers it", "Form YYYY: purpose"],
-  "calculations": ["Complete formula with ${TAX_YEAR} threshold and step-by-step example", "Phase-out range with ${TAX_YEAR} figures and calculation method", "Example computation showing all steps"],
-  "traps": ["Detailed exam trap 1 — explain what the trap looks like and the correct approach", "trap 2", "trap 3", "trap 4", "trap 5"]
+  "calculationFlows": [
+    {
+      "title": "What this flow computes (e.g., Refundable portion)",
+      "steps": [
+        {"label": "What you calculate", "formula": "exact formula with all numbers", "result": "what this produces", "decision": {"condition": "condition with threshold", "yes": "path if true", "no": "path if false"}}
+      ],
+      "final": "End result + form/line reference"
+    }
+  ],
+  "comparisonGrid": {
+    "columns": ["Credit/Rule A", "Credit/Rule B", "Credit/Rule C"],
+    "rows": [
+      {"dimension": "Age test", "values": ["value for A", "value for B", "value for C"]}
+    ]
+  }
 }
+The "decision" field on a calculation step is optional — include it only on steps where the math actually branches. The "tiebreakers" field is optional — include it only if tiebreaker rules exist.
 `.trim();
 
 export const MCQ_PROMPT = (topic: string, part: number, errorContext: string, coveredTopics: string[]) => `
@@ -253,6 +296,46 @@ Return ONLY a valid JSON array (no markdown):
     "answer": "Detailed answer with ${TAX_YEAR} figures, the applicable rule, exceptions, and any exam tips (e.g., '$30,000. This increases by $1,600 per spouse age 65+ or blind ($1,300 if not married). Note: If either spouse can be claimed as a dependent, the standard deduction may be limited.')"
   }
 ]
+`.trim();
+
+export const STORY_PROMPT = (topic: string, part: number) => `
+You are a tax tutor preparing a student for the US Enrolled Agent (EA) exam (SEE Part ${part}). The student learns best through vivid, realistic client stories that embed every rule, threshold, and edge case into the narrative.
+
+Tax Year: **${TAX_YEAR}** — Every threshold, dollar amount, percentage, age limit, and income limit must use ${TAX_YEAR} figures.
+
+Your task: For the topic below, create a single continuous story that covers every testable aspect of that topic.
+
+Topic: **${topic}**
+
+Story rules:
+- Use realistic American client names and authentic US tax situations (W-2 jobs, 1099 income, divorces, dependents, retirement accounts, small businesses, etc.) so the scenarios mirror what actually appears on the US EA exam. Make the characters relatable and memorable.
+- Structure the story as a client walking into a tax preparer's office. The preparer works through the situation step by step, discovering complications, running calculations out loud, and hitting edge cases along the way.
+- Every threshold number, dollar amount, percentage, age limit, and income limit must appear naturally inside the story through actual calculations the preparer performs. Never list rules in bullet points. The math should happen inside the conversation between preparer and client.
+- Build in at least 2-3 twists. Examples: a second person shows up claiming the same benefit, the client's situation changes mid-story revealing a different rule, or the client has a family member who almost qualifies but fails one test. These twists teach the edge cases.
+- Include a "what if" alternate version of the same client somewhere in the story. Change one variable (income level, filing status, number of dependents) and rework the math so the student sees how the same rules produce different outcomes.
+- Every tiebreaker rule, exception, and disqualification must surface through a character failing or nearly failing a test. Don't explain rules abstractly. Show a character hitting the wall.
+- Divide the story into 3-5 short titled sections, each covering ONE sub-aspect of the topic (for example: an eligibility test, a phase-out, a refundable portion, an exception). Put each section's title on its own line wrapped in Markdown bold, e.g. **The Phase-Out Wall**. Within each section write flowing narrative prose — no bullet points, no numbered lists, no tables. The sections together must still read as ONE continuous story with the same characters carried through.
+- Give the story a short, memorable name (5-8 words max) that captures the central conflict or twist. This name acts as a mental bookmark that pulls back the entire story when recalled.
+
+End with a section whose title line is **Test Yourself**, containing exactly 3 multiple-choice questions (4 options each, labeled A-D), followed by a worked solution after each showing the exact calculation steps.
+CRITICAL rules for these questions:
+- They must be BRAND-NEW "if-then" scenarios that change one or more variables from the story (a different income, age, filing status, number of dependents, or timing) and ask what happens under the new facts.
+- They must NOT re-ask, restate, or reuse any question, number, or outcome the preparer already worked out in the narrative. If the story already computed an answer, do not ask it again — invent a new variation that forces the student to re-apply the rule to different numbers.
+- Phrase each as an if-then variation, e.g. "If [character]'s AGI had been $X instead of $Y, then the credit would be ______?"
+
+Format:
+- Story name on the very first line in bold (use Markdown: **Story Name**)
+- Then the 3-5 titled sections in flowing prose, each introduced by its own bold title line
+- Finally the **Test Yourself** section with the 3 new if-then MCQs and their worked solutions
+
+What NOT to do:
+- Do not summarize rules before or after the story
+- Do not use bullet points or numbered lists inside the narrative prose (section title lines are allowed and required)
+- Do not skip any calculable number by saying "the credit reduces" without showing exact math
+- Do not create characters who qualify cleanly with no complications. Every character should test at least one boundary.
+- Do not make the Test Yourself questions duplicates of anything already solved in the story — they must use new variable values.
+
+Return ONLY the story as Markdown text. No JSON, no preamble, no closing commentary.
 `.trim();
 
 export const EVENING_SUMMARY_PROMPT = (topic: string, quizScore: number, totalQuestions: number, wrongTopics: string[]) => `

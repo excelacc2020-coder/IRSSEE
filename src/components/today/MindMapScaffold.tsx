@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { generateMindMap } from '../../services/aiService';
-import type { User, Session, UserSettings, MindMapContent, LessonTopic } from '../../types';
+import MermaidDiagram from './MermaidDiagram';
+import type {
+  User, Session, UserSettings, MindMapContent, ScannedRule,
+  DecisionTree, CalculationFlow, LessonTopic,
+} from '../../types';
 
 interface MindMapScaffoldProps {
   user: User;
@@ -11,13 +15,247 @@ interface MindMapScaffoldProps {
   onContinue: () => void;
 }
 
-const REFERENCE_CONFIG: { key: keyof Omit<MindMapContent, 'decisionFlow'>; label: string; bgColor: string; borderColor: string; headingColor: string; emptyLabel: string }[] = [
-  { key: 'rules', label: 'Core Rules', bgColor: 'bg-blue-50 dark:bg-blue-950/20', borderColor: 'border-blue-300 dark:border-blue-700', headingColor: 'text-blue-700 dark:text-blue-300', emptyLabel: 'No rules identified' },
-  { key: 'exceptions', label: 'Exceptions', bgColor: 'bg-orange-50 dark:bg-orange-950/20', borderColor: 'border-orange-300 dark:border-orange-700', headingColor: 'text-orange-700 dark:text-orange-300', emptyLabel: 'No exceptions identified' },
-  { key: 'forms', label: 'Forms & Schedules', bgColor: 'bg-teal-50 dark:bg-teal-950/20', borderColor: 'border-teal-300 dark:border-teal-700', headingColor: 'text-teal-700 dark:text-teal-300', emptyLabel: 'No forms identified' },
-  { key: 'calculations', label: 'Calculations', bgColor: 'bg-purple-50 dark:bg-purple-950/20', borderColor: 'border-purple-300 dark:border-purple-700', headingColor: 'text-purple-700 dark:text-purple-300', emptyLabel: 'No calculations identified' },
-  { key: 'traps', label: 'Exam Traps', bgColor: 'bg-red-50 dark:bg-red-950/20', borderColor: 'border-red-300 dark:border-red-700', headingColor: 'text-red-700 dark:text-red-300', emptyLabel: 'No traps identified' },
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Coerce an unknown (possibly string[] from the AI) into a single display string. */
+function s(v: unknown): string {
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map(s).join('; ');
+  if (v == null) return '';
+  return JSON.stringify(v);
+}
+
+/** Sanitize text for use inside a quoted Mermaid node label (htmlLabels on). */
+function mm(v: unknown): string {
+  return s(v)
+    .replace(/["\n\r]/g, ' ')      // quotes & newlines break labels
+    .replace(/&/g, '&amp;')        // escape entities — htmlLabels renders them
+    .replace(/</g, '&lt;')         // preserve "<"/">" (e.g. "AGI > $200k") as text
+    .replace(/>/g, '&gt;')
+    .replace(/[{}|[\]]/g, ' ')     // reserved Mermaid shape characters
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 140);
+}
+
+/**
+ * Flatten the stored Morning Brief (JSON) into readable notes for the prompt.
+ * The mind map analyzes ONLY these notes, so we pass every field through.
+ */
+function briefToText(session: Session | null): string {
+  if (!session?.morning_brief_content) return '';
+  let brief: Record<string, unknown>;
+  try {
+    brief = JSON.parse(session.morning_brief_content) as Record<string, unknown>;
+  } catch {
+    return '';
+  }
+  if (!brief || typeof brief !== 'object') return '';
+
+  const lines: string[] = [];
+  if (brief.overview) lines.push(`OVERVIEW: ${s(brief.overview)}`);
+
+  const sections = Array.isArray(brief.sections) ? brief.sections : [];
+  for (const sec of sections as Array<Record<string, unknown>>) {
+    lines.push(`\n## ${s(sec.heading)}`);
+    const items = Array.isArray(sec.items) ? sec.items : [];
+    for (const it of items as Array<Record<string, unknown>>) {
+      lines.push(`- ${s(it.label)}`);
+      if (it.rule) lines.push(`  Rule: ${s(it.rule)}`);
+      if (it.threshold) lines.push(`  Threshold: ${s(it.threshold)}`);
+      if (it.form) lines.push(`  Form: ${s(it.form)}`);
+      if (it.tip) lines.push(`  Tip: ${s(it.tip)}`);
+    }
+  }
+
+  if (brief.connections) lines.push(`\nCONNECTIONS: ${s(brief.connections)}`);
+  if (brief.examTraps) lines.push(`\nEXAM TRAPS: ${s(brief.examTraps)}`);
+  if (brief.errorBridge) lines.push(`\nERROR BRIDGE: ${s(brief.errorBridge)}`);
+  return lines.join('\n');
+}
+
+// ─── Mermaid flowchart builders ─────────────────────────────────────────────────
+
+/** Decision tree → top-down Mermaid flowchart (green gates, red fails, success). */
+function buildDecisionTreeChart(tree: DecisionTree): string {
+  const gates = Array.isArray(tree.gates) ? tree.gates : [];
+  const L: string[] = ['flowchart TD'];
+
+  // Node definitions first so shapes/classes bind reliably.
+  L.push(`  start(["${mm(tree.start) || 'Start'}"]):::start`);
+  gates.forEach((g, i) => {
+    L.push(`  g${i}{"${mm(g.question) || `Gate ${i + 1}`}"}:::gate`);
+    L.push(`  f${i}["${mm(g.failOutcome) || 'Does not qualify'}"]:::fail`);
+    (Array.isArray(tree.tiebreakers) ? tree.tiebreakers : [])
+      .filter(t => t.fromGate === i + 1)
+      .forEach((t, ti) => {
+        const text = (Array.isArray(t.rules) ? t.rules : [])
+          .map((r, ri) => `${ri + 1}. ${mm(r)}`)
+          .join(' • ');
+        L.push(`  tb${i}_${ti}["${text || 'Tiebreakers'}"]:::tie`);
+      });
+  });
+  L.push(`  success(["${mm(tree.success) || 'Qualifies'}"]):::success`);
+
+  // Edges.
+  L.push(`  start --> ${gates.length ? 'g0' : 'success'}`);
+  gates.forEach((_g, i) => {
+    L.push(`  g${i} -->|No| f${i}`);
+    L.push(`  g${i} -->|Yes| ${i < gates.length - 1 ? `g${i + 1}` : 'success'}`);
+    (Array.isArray(tree.tiebreakers) ? tree.tiebreakers : [])
+      .filter(t => t.fromGate === i + 1)
+      .forEach((_t, ti) => L.push(`  g${i} -.->|Tiebreakers| tb${i}_${ti}`));
+  });
+
+  L.push("  classDef start fill:#ecfdf5,stroke:#059669,color:#065f46;");
+  L.push("  classDef gate fill:#d1fae5,stroke:#059669,color:#065f46;");
+  L.push("  classDef fail fill:#fee2e2,stroke:#dc2626,color:#991b1b;");
+  L.push("  classDef success fill:#059669,stroke:#047857,color:#ffffff;");
+  L.push("  classDef tie fill:#fef9c3,stroke:#ca8a04,color:#713f12;");
+  return L.join('\n');
+}
+
+/** Calculation flow → top-down Mermaid flowchart (blue steps, amber branches). */
+function buildCalcFlowChart(flow: CalculationFlow): string {
+  const steps = Array.isArray(flow.steps) ? flow.steps : [];
+
+  // A decision only renders if it has a real condition AND at least one branch.
+  // The model sometimes emits empty placeholder decisions ({condition:"",yes:"",
+  // no:""}); empty-label nodes ([""]) make Mermaid fail to parse the whole chart.
+  const decisions = steps.map(st => {
+    if (!st.decision) return null;
+    const condition = mm(st.decision.condition);
+    const yes = mm(st.decision.yes);
+    const no = mm(st.decision.no);
+    return condition && (yes || no) ? { condition, yes, no } : null;
+  });
+
+  const L: string[] = ['flowchart TD'];
+
+  steps.forEach((st, i) => {
+    const label = [`${i + 1}. ${mm(st.label)}`, mm(st.formula), `= ${mm(st.result)}`]
+      .map(x => x.trim())
+      .filter(x => x && x !== '=' && x !== `${i + 1}.`)
+      .join('<br/>');
+    L.push(`  s${i}["${label || `Step ${i + 1}`}"]:::step`);
+    const d = decisions[i];
+    if (d) {
+      L.push(`  d${i}{"${d.condition}"}:::decision`);
+      if (d.yes) L.push(`  dy${i}["${d.yes}"]:::yes`);
+      if (d.no) L.push(`  dn${i}["${d.no}"]:::no`);
+    }
+  });
+  L.push(`  final(["${mm(flow.final) || 'Result'}"]):::final`);
+
+  steps.forEach((_st, i) => {
+    L.push(`  s${i} --> ${i < steps.length - 1 ? `s${i + 1}` : 'final'}`);
+    const d = decisions[i];
+    if (d) {
+      L.push(`  s${i} -.-> d${i}`);
+      if (d.yes) L.push(`  d${i} -->|Yes| dy${i}`);
+      if (d.no) L.push(`  d${i} -->|No| dn${i}`);
+    }
+  });
+
+  L.push("  classDef step fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;");
+  L.push("  classDef decision fill:#fef3c7,stroke:#d97706,color:#78350f;");
+  L.push("  classDef yes fill:#d1fae5,stroke:#059669,color:#065f46;");
+  L.push("  classDef no fill:#fee2e2,stroke:#dc2626,color:#991b1b;");
+  L.push("  classDef final fill:#2563eb,stroke:#1d4ed8,color:#ffffff;");
+  return L.join('\n');
+}
+
+// ─── Rule Anatomy Scan column config (color identity carried into each output) ──
+
+const SCAN_COLUMNS: {
+  key: 'gateRules' | 'mathChainRules' | 'parallelRules';
+  label: string;
+  output: string;
+  card: string;
+  heading: string;
+  numbers: string;
+}[] = [
+  {
+    key: 'gateRules',
+    label: 'Gate Rules',
+    output: '→ Decision Tree',
+    card: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20',
+    heading: 'text-emerald-700 dark:text-emerald-300',
+    numbers: 'text-emerald-600 dark:text-emerald-400',
+  },
+  {
+    key: 'mathChainRules',
+    label: 'Math Chain Rules',
+    output: '→ Calculation Flow',
+    card: 'border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-950/20',
+    heading: 'text-blue-700 dark:text-blue-300',
+    numbers: 'text-blue-600 dark:text-blue-400',
+  },
+  {
+    key: 'parallelRules',
+    label: 'Parallel Rules',
+    output: '→ Comparison Grid',
+    card: 'border-purple-200 dark:border-purple-800 bg-purple-50/60 dark:bg-purple-950/20',
+    heading: 'text-purple-700 dark:text-purple-300',
+    numbers: 'text-purple-600 dark:text-purple-400',
+  },
 ];
+
+function SectionTitle({ accent, children }: { accent: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <span className={`w-2.5 h-2.5 rounded-full ${accent}`} />
+      <h4 className="text-sm font-semibold text-th-text uppercase tracking-wide">{children}</h4>
+    </div>
+  );
+}
+
+function EmptyOutput({ text }: { text: string }) {
+  return (
+    <div className="border border-dashed border-th-border rounded-xl p-5 text-center">
+      <p className="text-xs text-th-text-faint italic">{text}</p>
+    </div>
+  );
+}
+
+/**
+ * Tabbed frame for a set of diagrams — one tab per process, only the active
+ * diagram is rendered, keeping the page compact instead of stacking flowcharts.
+ */
+function DiagramTabs({ items, color }: { items: { title: string; chart: string }[]; color: 'emerald' | 'blue' }) {
+  const [active, setActive] = useState(0);
+  if (items.length === 0) return null;
+  const idx = Math.min(active, items.length - 1);
+  const activeCls =
+    color === 'emerald'
+      ? 'bg-emerald-600 border-emerald-600 text-white'
+      : 'bg-blue-600 border-blue-600 text-white';
+
+  return (
+    <div>
+      {items.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {items.map((it, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                i === idx
+                  ? activeCls
+                  : 'border-th-border text-th-text-muted hover:text-th-text hover:border-th-border-strong'
+              }`}
+            >
+              {it.title || `#${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+      <MermaidDiagram key={idx} chart={items[idx].chart} />
+    </div>
+  );
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────────
 
 export default function MindMapScaffold({ topic, session, settings, onComplete, onContinue }: MindMapScaffoldProps) {
   const existingContent = session?.mind_map_content
@@ -27,6 +265,8 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   const [mindMap, setMindMap] = useState<MindMapContent | null>(existingContent);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const briefText = briefToText(session);
 
   async function generate() {
     if (!settings?.ai_api_key) {
@@ -41,7 +281,8 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
       const result = await generateMindMap(
         { provider: settings.ai_provider, apiKey: settings.ai_api_key, model: settings.ai_model },
         topic.topic,
-        topic.part
+        topic.part,
+        briefText
       );
       setMindMap(result);
       onComplete(JSON.stringify(result));
@@ -53,13 +294,26 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
   }
 
   const alreadyGenerated = session?.mind_map_generated ?? false;
+  const scan = mindMap?.scan;
+  const grid = mindMap?.comparisonGrid;
+
+  // Normalize: new maps use arrays; legacy maps used a single object.
+  const trees = mindMap?.decisionTrees ?? (mindMap?.decisionTree ? [mindMap.decisionTree] : []);
+  const flows = mindMap?.calculationFlows ?? (mindMap?.calculationFlow ? [mindMap.calculationFlow] : []);
+  const renderableTrees = trees.filter(t => t && Array.isArray(t.gates) && t.gates.length > 0);
+  const renderableFlows = flows.filter(f => f && Array.isArray(f.steps) && f.steps.length > 0);
+
+  const hasTree = renderableTrees.length > 0;
+  const hasFlow = renderableFlows.length > 0;
+  const hasGrid = !!grid && Array.isArray(grid.columns) && Array.isArray(grid.rows) && grid.rows.length > 0;
 
   return (
     <div>
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-th-text">Decision Flow Map</h3>
+        <h3 className="text-lg font-semibold text-th-text">Rule Map</h3>
         <p className="text-sm text-th-text-muted mt-1">
-          How a tax professional thinks through {topic.topic} — step by step.
+          Classifies the Morning Brief rules into gates, math chains, and parallels — then maps each
+          into a Decision Tree, Calculation Flow, and Comparison Grid.
         </p>
       </div>
 
@@ -70,11 +324,17 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
               {error}
             </div>
           )}
+          {!briefText && (
+            <p className="mb-4 text-sm text-yellow-600 dark:text-yellow-400">
+              No Morning Brief found for today. Generate the Morning Brief first for the most accurate
+              map — or continue and the map will be built from the topic alone.
+            </p>
+          )}
           <button
             onClick={generate}
             className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
           >
-            Generate Decision Flow
+            Generate Rule Map
           </button>
           {alreadyGenerated && (
             <button
@@ -90,85 +350,144 @@ export default function MindMapScaffold({ topic, session, settings, onComplete, 
       {loading && (
         <div className="bg-th-card border border-th-border rounded-xl p-8 text-center">
           <div className="inline-block w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-th-text-muted text-sm">Building decision flow map...</p>
+          <p className="text-th-text-muted text-sm">Scanning rules and building the map...</p>
         </div>
       )}
 
       {mindMap && (
-        <div>
-          {/* Decision Flow */}
-          <div className="mb-6">
-            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-4">Decision Flow</h4>
-            <div className="relative">
-              {(Array.isArray(mindMap.decisionFlow) ? mindMap.decisionFlow : []).map((node, i) => (
-                <div key={i}>
-                  {/* Flow node */}
-                  <div className="flex gap-3">
-                    {/* Left: step number + vertical line */}
-                    <div className="flex flex-col items-center flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-blue-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-                        {i + 1}
+        <div className="space-y-8">
+          {/* ── Rule Anatomy Scan ─────────────────────────────────────────── */}
+          {scan && (
+            <section>
+              <SectionTitle accent="bg-th-text-muted">Rule Anatomy Scan</SectionTitle>
+              <div className="grid gap-3 md:grid-cols-3">
+                {SCAN_COLUMNS.map(col => {
+                  const rules: ScannedRule[] = Array.isArray(scan[col.key]) ? scan[col.key] : [];
+                  return (
+                    <div key={col.key} className={`border rounded-xl p-4 ${col.card}`}>
+                      <div className="flex items-baseline justify-between mb-2">
+                        <h5 className={`text-xs font-semibold uppercase tracking-wider ${col.heading}`}>{col.label}</h5>
+                        <span className={`text-[10px] font-medium ${col.numbers}`}>{col.output}</span>
                       </div>
-                      {i < (mindMap.decisionFlow ?? []).length - 1 && (
-                        <div className="w-0.5 bg-blue-800 flex-1 min-h-[32px] mt-1" />
+                      {rules.length > 0 ? (
+                        <ul className="space-y-2">
+                          {rules.map((r, i) => (
+                            <li key={i} className="text-xs text-th-text-secondary leading-snug">
+                              <span>{s(r.rule)}</span>
+                              {s(r.numbers) && (
+                                <span className={`block font-mono text-[11px] mt-0.5 ${col.numbers}`}>{s(r.numbers)}</span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-th-text-faint italic">None in this brief</p>
                       )}
                     </div>
-
-                    {/* Right: content */}
-                    <div className={`flex-1 bg-th-card border border-th-border-strong rounded-xl p-4 ${
-                      i < (mindMap.decisionFlow ?? []).length - 1 ? 'mb-2' : ''
-                    }`}>
-                      <div className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1">
-                        {typeof node.node === 'string' ? node.node : JSON.stringify(node.node)}
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3 mt-2">
-                        <div className="flex-1 bg-amber-50 dark:bg-yellow-950/30 border border-amber-200 dark:border-yellow-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-amber-700 dark:text-yellow-500 font-medium block mb-0.5">Decision</span>
-                          <span className="text-sm text-amber-900 dark:text-yellow-100 leading-snug">
-                            {typeof node.question === 'string' ? node.question : JSON.stringify(node.question)}
-                          </span>
-                        </div>
-                        <div className="flex-1 bg-emerald-50 dark:bg-green-950/30 border border-emerald-200 dark:border-green-800/50 rounded-lg px-3 py-2">
-                          <span className="text-xs text-emerald-700 dark:text-green-500 font-medium block mb-0.5">Action</span>
-                          <span className="text-sm text-emerald-900 dark:text-green-100 leading-snug">
-                            {typeof node.action === 'string' ? node.action : JSON.stringify(node.action)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  );
+                })}
+              </div>
+              {Array.isArray(scan.outputPlan) && scan.outputPlan.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <span className="text-xs text-th-text-muted uppercase tracking-wider">Output plan:</span>
+                  {scan.outputPlan.map((p, i) => (
+                    <span key={i} className="text-xs font-medium px-2.5 py-1 rounded-full bg-th-input text-th-text-secondary border border-th-border">
+                      {s(p)}
+                    </span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
+            </section>
+          )}
 
-          {/* Reference Tables */}
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold text-th-text-muted uppercase tracking-wider mb-3">Reference Framework</h4>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {REFERENCE_CONFIG.map(({ key, label, bgColor, borderColor, headingColor, emptyLabel }) => {
-                const rawItems = mindMap[key];
-                const items = Array.isArray(rawItems) ? rawItems : (typeof rawItems === 'string' ? [rawItems] : []);
-                return (
-                  <div key={key} className={`border rounded-xl p-4 ${bgColor} ${borderColor}`}>
-                    <h5 className={`text-xs font-semibold uppercase tracking-wider mb-3 ${headingColor}`}>{label}</h5>
-                    {items.length > 0 ? (
-                      <ul className="space-y-1.5">
-                        {items.map((item, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs text-th-text-secondary">
-                            <span className="text-th-text-faint flex-shrink-0 mt-0.5">·</span>
-                            <span className="leading-snug">{typeof item === 'string' ? item : JSON.stringify(item)}</span>
-                          </li>
+          {/* ── Decision Trees (green) — one per gated process ────────────── */}
+          <section>
+            <SectionTitle accent="bg-emerald-500">
+              {renderableTrees.length > 1 ? 'Decision Trees' : 'Decision Tree'}
+            </SectionTitle>
+            {hasTree ? (
+              <div className="border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 rounded-xl p-4">
+                <DiagramTabs
+                  color="emerald"
+                  items={renderableTrees.map((t, i) => ({
+                    title: s(t.title) || `Tree ${i + 1}`,
+                    chart: buildDecisionTreeChart(t),
+                  }))}
+                />
+              </div>
+            ) : (
+              <EmptyOutput text="No gate (yes/no eligibility) rules in this brief — no decision tree needed." />
+            )}
+          </section>
+
+          {/* ── Calculation Flows (blue) — one per calculation ────────────── */}
+          <section>
+            <SectionTitle accent="bg-blue-500">
+              {renderableFlows.length > 1 ? 'Calculation Flows' : 'Calculation Flow'}
+            </SectionTitle>
+            {hasFlow ? (
+              <div className="border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 rounded-xl p-4">
+                <DiagramTabs
+                  color="blue"
+                  items={renderableFlows.map((f, i) => ({
+                    title: s(f.title) || `Flow ${i + 1}`,
+                    chart: buildCalcFlowChart(f),
+                  }))}
+                />
+              </div>
+            ) : (
+              <EmptyOutput text="No math-chain (calculation) rules in this brief — no calculation flow needed." />
+            )}
+          </section>
+
+          {/* ── Comparison Grid (purple) ──────────────────────────────────── */}
+          <section>
+            <SectionTitle accent="bg-purple-500">Comparison Grid</SectionTitle>
+            {hasGrid ? (
+              <>
+                <div className="border border-purple-200 dark:border-purple-800 rounded-xl overflow-hidden overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="bg-purple-100 dark:bg-purple-950/40">
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                          Dimension
+                        </th>
+                        {grid!.columns.map((c, i) => (
+                          <th key={i} className="text-left px-3 py-2 text-xs font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wider">
+                            {s(c)}
+                          </th>
                         ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-th-text-faint italic">{emptyLabel}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grid!.rows.map((row, ri) => {
+                        const values = Array.isArray(row.values) ? row.values : [];
+                        const allSame = values.length > 1 && values.every(v => s(v) === s(values[0]));
+                        return (
+                          <tr key={ri} className="border-t border-purple-100 dark:border-purple-900/60 odd:bg-purple-50/40 dark:odd:bg-purple-950/10">
+                            <td className="px-3 py-2 text-xs font-medium text-th-text align-top">{s(row.dimension)}</td>
+                            {grid!.columns.map((_, ci) => (
+                              <td
+                                key={ci}
+                                className={`px-3 py-2 text-xs align-top ${allSame ? 'text-th-text-faint' : 'text-th-text-secondary'}`}
+                              >
+                                {s(values[ci])}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[11px] text-th-text-faint mt-2">
+                  Rows where values diverge across columns are the exam traps. Greyed rows are identical across all.
+                </p>
+              </>
+            ) : (
+              <EmptyOutput text="No parallel (related-credit) rules in this brief — no comparison grid needed." />
+            )}
+          </section>
 
           <div className="flex items-center justify-between pt-2">
             <button

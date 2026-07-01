@@ -12,6 +12,9 @@ create table if not exists sessions (
   topic text not null default '',
   part integer not null check (part in (1, 2, 3)),
   morning_brief_viewed boolean not null default false,
+  morning_brief_content text,
+  topic_stories jsonb not null default '{}'::jsonb,
+  quiz_scenario text,
   study_notes text not null default '',
   mind_map_generated boolean not null default false,
   mind_map_content text not null default '',
@@ -116,3 +119,9 @@ create trigger sessions_updated_at
 create trigger user_settings_updated_at
   before update on user_settings
   for each row execute function update_updated_at();
+
+-- ─── Migrations for existing databases ────────────────────────────────────────
+-- Run these once if your sessions table predates the columns above.
+alter table sessions add column if not exists morning_brief_content text;
+alter table sessions add column if not exists quiz_scenario text;
+alter table sessions add column if not exists topic_stories jsonb not null default '{}'::jsonb;
