@@ -15,29 +15,147 @@ export interface AIConfig {
   model: string;
 }
 
-// ─── Model routing (Smart Opus Hybrid for Claude) ────────────────────────────
+// ─── Universal 3-tier model routing ──────────────────────────────────────────
 
-const CLAUDE_OPUS_MODEL = 'claude-opus-4-6';
-const CLAUDE_SONNET_MODEL = 'claude-sonnet-4-6';
-const CLAUDE_HAIKU_MODEL = 'claude-haiku-4-5-20251001';
+export type TaskTier = 'heavy' | 'reasoning' | 'light';
 
 type TaskType = 'morningBrief' | 'mindMap' | 'ankiCards' | 'mcq' | 'categorizeError' | 'story';
 
-function resolveModel(config: AIConfig, task: TaskType): string {
-  if (config.provider !== 'claude') return config.model;
+const TASK_TIER: Record<TaskType, TaskTier> = {
+  morningBrief:    'heavy',
+  mindMap:         'heavy',
+  ankiCards:       'heavy',
+  story:           'heavy',
+  mcq:             'reasoning', // needs arithmetic verification before writing options
+  categorizeError: 'light',
+};
 
-  // Smart Opus Hybrid: Opus for complex generation, Sonnet for MCQ (math accuracy), Haiku for simple categorization
-  switch (task) {
-    case 'morningBrief':
-    case 'mindMap':
-    case 'ankiCards':
-    case 'story':
-      return CLAUDE_OPUS_MODEL;
-    case 'mcq':
-      return CLAUDE_SONNET_MODEL; // MCQ needs reliable arithmetic — Haiku makes calculation errors
-    case 'categorizeError':
-      return CLAUDE_HAIKU_MODEL;
+// Default tier assignments — overwritten by refreshModels() when live model list is fetched
+export const PROVIDER_TIERS: Record<AIProvider, Record<TaskTier, string>> = {
+  claude: {
+    heavy:     'claude-opus-4-6',
+    reasoning: 'claude-sonnet-4-6',
+    light:     'claude-haiku-4-5-20251001',
+  },
+  deepseek: {
+    heavy:     'deepseek-v4-pro',    // best general-purpose model
+    reasoning: 'deepseek-reasoner',  // R1 chain-of-thought for MCQ arithmetic
+    light:     'deepseek-chat',      // maps to v4-flash on DeepSeek's backend
+  },
+  groq: {
+    heavy:     'llama-3.3-70b-versatile',
+    reasoning: 'llama-3.3-70b-versatile', // no dedicated reasoning model yet; same heavy
+    light:     'llama3-8b-8192',
+  },
+  gemini: {
+    heavy:     'gemini-2.5-pro',
+    reasoning: 'gemini-2.5-flash',   // flash has built-in thinking mode
+    light:     'gemini-2.5-flash-lite',
+  },
+  zai: {
+    heavy:     'glm-5.2',
+    reasoning: 'glm-5.1',
+    light:     'glm-4.5-flash',
+  },
+};
+
+// Restore any tier overrides persisted by a previous refreshModels() call
+(function loadPersistedTiers() {
+  for (const p of Object.keys(PROVIDER_TIERS) as AIProvider[]) {
+    const stored = localStorage.getItem(`ea_tiers_${p}`);
+    if (stored) {
+      try { Object.assign(PROVIDER_TIERS[p], JSON.parse(stored) as Record<TaskTier, string>); } catch { /**/ }
+    }
   }
+})();
+
+// Classify a model ID into a tier by name pattern
+function inferModelTier(id: string): TaskTier {
+  const s = id.toLowerCase();
+  if (/flash|lite|mini|nano|micro|haiku|instant|\b8b\b|\b3b\b|\b1b\b/.test(s)) return 'light';
+  if (/reason|think|\br1\b|\br2\b|qwq|deepthink/.test(s)) return 'reasoning';
+  return 'heavy';
+}
+
+function resolveModel(config: AIConfig, task: TaskType): string {
+  return PROVIDER_TIERS[config.provider][TASK_TIER[task]];
+}
+
+// ─── Live model discovery ─────────────────────────────────────────────────────
+
+async function fetchRawModels(provider: AIProvider, apiKey: string): Promise<string[]> {
+  try {
+    if (provider === 'claude') {
+      const res = await fetch('https://api.anthropic.com/v1/models', {
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+      });
+      if (!res.ok) return [];
+      const data = await res.json() as { data: Array<{ id: string }> };
+      return data.data.map(m => m.id);
+    }
+
+    if (provider === 'gemini') {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      );
+      if (!res.ok) return [];
+      const data = await res.json() as {
+        models: Array<{ name: string; supportedGenerationMethods?: string[] }>;
+      };
+      return data.models
+        .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+        .map(m => m.name.replace('models/', ''))
+        .filter(id => id.startsWith('gemini'));
+    }
+
+    // OpenAI-compatible providers
+    const base: Record<string, string> = {
+      deepseek: 'https://api.deepseek.com/v1',
+      groq:     'https://api.groq.com/openai/v1',
+      zai:      'https://api.z.ai/api/paas/v4',
+    };
+    const res = await fetch(`${base[provider]}/models`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json() as { data: Array<{ id: string }> };
+    return data.data.map(m => m.id);
+  } catch {
+    return [];
+  }
+}
+
+function computeTiersFromModels(
+  provider: AIProvider,
+  models: string[],
+): Record<TaskTier, string> {
+  const byTier: Record<TaskTier, string[]> = { heavy: [], reasoning: [], light: [] };
+  for (const m of models) byTier[inferModelTier(m)].push(m);
+  for (const t of ['heavy', 'reasoning', 'light'] as TaskTier[]) byTier[t].sort().reverse();
+
+  const cur = PROVIDER_TIERS[provider];
+  return {
+    heavy:     byTier.heavy[0]     ?? cur.heavy,
+    reasoning: byTier.reasoning[0] ?? byTier.heavy[0] ?? cur.heavy,
+    light:     byTier.light[0]     ?? byTier.heavy[0] ?? cur.heavy,
+  };
+}
+
+export async function refreshModels(
+  provider: AIProvider,
+  apiKey: string,
+): Promise<{ models: string[]; tiers: Record<TaskTier, string> }> {
+  const models = await fetchRawModels(provider, apiKey);
+  if (models.length > 0) {
+    const tiers = computeTiersFromModels(provider, models);
+    Object.assign(PROVIDER_TIERS[provider], tiers);
+    localStorage.setItem(`ea_tiers_${provider}`, JSON.stringify(PROVIDER_TIERS[provider]));
+  }
+  return { models, tiers: { ...PROVIDER_TIERS[provider] } };
 }
 
 // ─── Provider adapters ───────────────────────────────────────────────────────
@@ -62,12 +180,13 @@ async function callClaudeModel(apiKey: string, model: string, prompt: string, ma
 async function callClaude(apiKey: string, model: string, prompt: string, maxTokens = 4096): Promise<string> {
   let response = await callClaudeModel(apiKey, model, prompt, maxTokens);
 
-  // Fallback chain on 529 overloaded: Opus → Sonnet → Haiku
-  if (response.status === 529 && model === CLAUDE_OPUS_MODEL) {
-    response = await callClaudeModel(apiKey, CLAUDE_SONNET_MODEL, prompt, maxTokens);
+  // Fallback chain on 529 overloaded: heavy → reasoning → light
+  const ct = PROVIDER_TIERS.claude;
+  if (response.status === 529 && model === ct.heavy) {
+    response = await callClaudeModel(apiKey, ct.reasoning, prompt, maxTokens);
   }
   if (response.status === 529) {
-    response = await callClaudeModel(apiKey, CLAUDE_HAIKU_MODEL, prompt, maxTokens);
+    response = await callClaudeModel(apiKey, ct.light, prompt, maxTokens);
   }
 
   if (!response.ok) {
