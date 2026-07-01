@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LESSON_PLAN, PART_LABELS } from '../constants/lessonPlan';
-import type { ActiveTab, Session } from '../types';
+import type { ActiveTab, Session, LessonTopic } from '../types';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -8,6 +8,8 @@ interface SidebarProps {
   currentDay: number;
   sessions: Session[];
   onDaySelect: (day: number) => void;
+  topicOrder: number[] | null;
+  onTopicOrderChange: (order: number[]) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -17,6 +19,39 @@ const BASE_TABS: { id: ActiveTab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'cards', label: 'Cards' },
 ];
+
+/**
+ * Resolve LESSON_PLAN into the user's chosen display order.
+ * `order` is a list of topic `day` ids; unknown/duplicate ids are ignored and
+ * any topics missing from the saved order are appended in their natural order.
+ */
+function orderTopics(order: number[] | null): LessonTopic[] {
+  if (!order || order.length === 0) return LESSON_PLAN;
+  const byDay = new Map(LESSON_PLAN.map(t => [t.day, t]));
+  const seen = new Set<number>();
+  const result: LessonTopic[] = [];
+  for (const day of order) {
+    const topic = byDay.get(day);
+    if (topic && !seen.has(day)) {
+      result.push(topic);
+      seen.add(day);
+    }
+  }
+  for (const topic of LESSON_PLAN) {
+    if (!seen.has(topic.day)) result.push(topic);
+  }
+  return result;
+}
+
+/** Move `fromDay` to sit immediately before `toDay`, returning a new order array. */
+function reorderDays(order: number[], fromDay: number, toDay: number): number[] {
+  if (fromDay === toDay) return order;
+  const arr = order.filter(d => d !== fromDay);
+  const insertAt = arr.indexOf(toDay);
+  if (insertAt === -1) return order;
+  arr.splice(insertAt, 0, fromDay);
+  return arr;
+}
 
 function getStatusColor(day: number, currentDay: number, sessions: Session[]): string {
   if (day > currentDay) return 'bg-th-hover'; // locked
@@ -34,6 +69,8 @@ export default function Sidebar({
   currentDay,
   sessions,
   onDaySelect,
+  topicOrder,
+  onTopicOrderChange,
   theme,
   toggleTheme,
 }: SidebarProps) {
@@ -41,6 +78,19 @@ export default function Sidebar({
   const [expandedPart, setExpandedPart] = useState<number>(
     LESSON_PLAN.find(t => t.day === currentDay)?.part ?? 1
   );
+  const [draggingDay, setDraggingDay] = useState<number | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+
+  const orderedTopics = orderTopics(topicOrder);
+  const currentOrder = orderedTopics.map(t => t.day);
+
+  function handleDrop(targetDay: number) {
+    if (draggingDay !== null && draggingDay !== targetDay) {
+      onTopicOrderChange(reorderDays(currentOrder, draggingDay, targetDay));
+    }
+    setDraggingDay(null);
+    setDragOverDay(null);
+  }
 
   const completedDays = sessions.filter(s => s.locked).length;
   const mockExamUnlocked = completedDays >= 5;
@@ -77,12 +127,15 @@ export default function Sidebar({
 
       {/* Lesson Plan */}
       <div className="flex-1 overflow-y-auto px-3 py-3">
-        <p className="text-xs font-semibold text-th-text-faint uppercase tracking-wider px-1 mb-2">
+        <p className="text-xs font-semibold text-th-text-faint uppercase tracking-wider px-1 mb-1">
           Lesson Plan
+        </p>
+        <p className="text-[10px] text-th-text-faint px-1 mb-2">
+          Drag topics to reorder · click any topic to open
         </p>
 
         {([1, 2, 3] as const).map(part => {
-          const partTopics = LESSON_PLAN.filter(t => t.part === part);
+          const partTopics = orderedTopics.filter(t => t.part === part);
           const isExpanded = expandedPart === part;
 
           return (
@@ -100,29 +153,44 @@ export default function Sidebar({
                   {partTopics.map(topic => {
                     const statusColor = getStatusColor(topic.day, currentDay, sessions);
                     const isCurrent = topic.day === currentDay;
+                    const isDragging = draggingDay === topic.day;
+                    const isDragOver = dragOverDay === topic.day;
 
                     return (
-                      <button
+                      <div
                         key={topic.day}
-                        onClick={() => {
-                          onDaySelect(topic.day);
-                          onTabChange('today');
-                          setMobileOpen(false);
+                        draggable
+                        onDragStart={() => setDraggingDay(topic.day)}
+                        onDragEnd={() => { setDraggingDay(null); setDragOverDay(null); }}
+                        onDragOver={e => {
+                          // Only allow reordering within the same part.
+                          if (draggingDay !== null && topic.part === part) {
+                            e.preventDefault();
+                            if (dragOverDay !== topic.day) setDragOverDay(topic.day);
+                          }
                         }}
-                        disabled={topic.day > currentDay}
-                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
-                          isCurrent
-                            ? 'bg-th-hover text-th-text font-medium'
-                            : topic.day > currentDay
-                            ? 'text-th-text-faint cursor-not-allowed'
-                            : 'text-th-text-muted hover:text-th-text hover:bg-th-input cursor-pointer'
-                        }`}
+                        onDrop={e => { e.preventDefault(); handleDrop(topic.day); }}
+                        className={`rounded-md ${isDragOver ? 'ring-1 ring-blue-500' : ''} ${isDragging ? 'opacity-40' : ''}`}
                       >
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
-                        <span className="truncate">
-                          Day {topic.day}: {topic.topic}
-                        </span>
-                      </button>
+                        <button
+                          onClick={() => {
+                            onDaySelect(topic.day);
+                            onTabChange('today');
+                            setMobileOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors cursor-pointer ${
+                            isCurrent
+                              ? 'bg-th-hover text-th-text font-medium'
+                              : 'text-th-text-muted hover:text-th-text hover:bg-th-input'
+                          }`}
+                        >
+                          <span className="text-th-text-faint cursor-grab select-none flex-shrink-0" title="Drag to reorder">⠿</span>
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${statusColor}`} />
+                          <span className="truncate">
+                            Day {topic.day}: {topic.topic}
+                          </span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

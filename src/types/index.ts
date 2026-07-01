@@ -90,6 +90,9 @@ export interface UserSettings {
   ai_api_key: string;
   ai_model: string;
   current_day: number;
+  // User's custom sidebar display order as a list of topic `day` ids.
+  // null / absent = use the natural LESSON_PLAN order.
+  topic_order: number[] | null;
   updated_at: string;
 }
 

@@ -61,6 +61,7 @@ export async function upsertUserSettings(
     ai_api_key: '',
     ai_model: 'claude-opus-4-6',
     current_day: 1,
+    topic_order: null,
     ...existing,
     ...settings,
     updated_at: new Date().toISOString(),
@@ -76,6 +77,7 @@ export async function upsertUserSettings(
     ai_api_key: merged.ai_api_key,
     ai_model: merged.ai_model,
     current_day: merged.current_day,
+    topic_order: merged.topic_order ?? null,
     updated_at: merged.updated_at,
   };
 

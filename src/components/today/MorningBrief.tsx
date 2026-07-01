@@ -11,6 +11,7 @@ interface MorningBriefProps {
   settings: UserSettings | null;
   onComplete: (content: MorningBriefContent, topicStories?: Record<string, string>) => void;
   onStorySave: (heading: string, story: string) => void;
+  onContinue: () => void;
 }
 
 function renderSafeStringOrList(content: any, textClass: string) {
@@ -61,7 +62,7 @@ function parseBriefFromSession(session: Session | null): MorningBriefContent | n
   }
 }
 
-export default function MorningBrief({ user, topic, session, settings, onComplete, onStorySave }: MorningBriefProps) {
+export default function MorningBrief({ user, topic, session, settings, onComplete, onStorySave, onContinue }: MorningBriefProps) {
   // Single source of truth: session.morning_brief_content (backed by Supabase).
   // We derive the brief directly from the session prop — no separate localStorage key.
   const [brief, setBrief] = useState<MorningBriefContent | null>(() =>
@@ -308,7 +309,7 @@ export default function MorningBrief({ user, topic, session, settings, onComplet
 
           <div className="flex justify-end pt-2">
             <button
-              onClick={() => onComplete(brief)}
+              onClick={() => { onComplete(brief); onContinue(); }}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
             >
               Continue to Videos

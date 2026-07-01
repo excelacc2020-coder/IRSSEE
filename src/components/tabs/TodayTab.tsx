@@ -158,6 +158,7 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
             onStorySave={(heading, story) => handleSessionUpdate({
               topic_stories: { ...(session?.topic_stories ?? {}), [heading]: story },
             })}
+            onContinue={() => setActivePhase(1)}
           />
         )}
         {activePhase === 1 && (
@@ -208,6 +209,16 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
                 quiz_passed: score >= 4,
               })
             }
+            onGenerate={(questions, scenario) =>
+              handleSessionUpdate({
+                quiz_scenario: scenario,
+                quiz_questions: questions,
+                quiz_answers: {},
+                quiz_score: null,
+                quiz_passed: false,
+              })
+            }
+            onAnswer={answers => handleSessionUpdate({ quiz_answers: answers })}
             onContinue={() => setActivePhase(6)}
           />
         )}

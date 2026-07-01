@@ -86,6 +86,7 @@ create table if not exists user_settings (
   ai_api_key text not null default '',
   ai_model text not null default 'claude-opus-4-6',
   current_day integer not null default 1 check (current_day >= 1 and current_day <= 50),
+  topic_order jsonb,
   updated_at timestamptz not null default now()
 );
 
@@ -125,3 +126,5 @@ create trigger user_settings_updated_at
 alter table sessions add column if not exists morning_brief_content text;
 alter table sessions add column if not exists quiz_scenario text;
 alter table sessions add column if not exists topic_stories jsonb not null default '{}'::jsonb;
+-- Custom sidebar topic ordering (list of topic `day` ids). Null = natural order.
+alter table user_settings add column if not exists topic_order jsonb;
