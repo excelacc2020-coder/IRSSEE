@@ -72,25 +72,29 @@ export default function FlipReview({ cards, onExit }: FlipReviewProps) {
         </button>
       </div>
 
-      {/* Card */}
+      {/* Card — fixed height with internal scroll so long text stays inside the
+          frame (and off the response buttons) on small screens. */}
       <div
         className="flip-card w-full cursor-pointer select-none"
-        style={{ minHeight: '260px' }}
         onClick={() => setFlipped(f => !f)}
       >
-        <div className={`flip-card-inner w-full ${flipped ? 'flipped' : ''}`} style={{ minHeight: '260px' }}>
+        <div className={`flip-card-inner w-full h-[300px] sm:h-[340px] ${flipped ? 'flipped' : ''}`}>
           {/* Front */}
-          <div className="flip-card-front bg-th-card border border-th-border rounded-2xl p-8 flex flex-col justify-center items-center text-center w-full" style={{ minHeight: '260px' }}>
-            <p className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-4">Question</p>
-            <p className="text-th-text text-lg font-medium leading-relaxed">{card.question}</p>
-            <p className="text-xs text-th-text-faint mt-6">Click to reveal answer</p>
+          <div className="flip-card-front bg-th-card border border-th-border rounded-2xl p-5 sm:p-8 flex flex-col w-full h-full overflow-y-auto">
+            <div className="m-auto text-center">
+              <p className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-4">Question</p>
+              <p className="text-th-text text-base sm:text-lg font-medium leading-relaxed">{card.question}</p>
+              <p className="text-xs text-th-text-faint mt-6">Click to reveal answer</p>
+            </div>
           </div>
 
           {/* Back */}
-          <div className="flip-card-back bg-th-card border border-blue-200 dark:border-blue-800 rounded-2xl p-8 flex flex-col justify-center items-center text-center" style={{ minHeight: '260px' }}>
-            <p className="text-xs text-green-600 dark:text-green-400 uppercase tracking-wider mb-4">Answer</p>
-            <p className="text-th-text-secondary text-base leading-relaxed">{card.answer}</p>
-            <p className="text-xs text-th-text-faint mt-4">{card.topic} · Day {card.day}</p>
+          <div className="flip-card-back bg-th-card border border-blue-200 dark:border-blue-800 rounded-2xl p-5 sm:p-8 flex flex-col overflow-y-auto">
+            <div className="m-auto text-center">
+              <p className="text-xs text-green-600 dark:text-green-400 uppercase tracking-wider mb-4">Answer</p>
+              <p className="text-th-text-secondary text-base leading-relaxed">{card.answer}</p>
+              <p className="text-xs text-th-text-faint mt-4">{card.topic} · Day {card.day}</p>
+            </div>
           </div>
         </div>
       </div>
