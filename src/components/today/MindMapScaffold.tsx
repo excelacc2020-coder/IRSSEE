@@ -39,6 +39,35 @@ function mm(v: unknown): string {
 }
 
 /**
+ * Diamond (gate/decision) nodes have a small interior, so long single-line text
+ * spills outside the shape and reads as hidden. Word-wrap the label onto short
+ * lines and cap its overall length so it stays inside the box. Splitting only on
+ * spaces keeps escaped entities (e.g. "&amp;") intact.
+ */
+function mmWrap(v: unknown, maxChars = 64, wrapAt = 22): string {
+  const words = mm(v).split(' ').filter(Boolean);
+  const lines: string[] = [];
+  let line = '';
+  let used = 0;
+  let truncated = false;
+  for (const word of words) {
+    if (used + word.length + 1 > maxChars) {
+      truncated = true;
+      break;
+    }
+    if (line && line.length + 1 + word.length > wrapAt) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+    used += word.length + 1;
+  }
+  if (line) lines.push(line);
+  return truncated ? `${lines.join('<br/>')}…` : lines.join('<br/>');
+}
+
+/**
  * Flatten the stored Morning Brief (JSON) into readable notes for the prompt.
  * The mind map analyzes ONLY these notes, so we pass every field through.
  */
@@ -84,7 +113,7 @@ function buildDecisionTreeChart(tree: DecisionTree): string {
   // Node definitions first so shapes/classes bind reliably.
   L.push(`  start(["${mm(tree.start) || 'Start'}"]):::start`);
   gates.forEach((g, i) => {
-    L.push(`  g${i}{"${mm(g.question) || `Gate ${i + 1}`}"}:::gate`);
+    L.push(`  g${i}{"${mmWrap(g.question) || `Gate ${i + 1}`}"}:::gate`);
     L.push(`  f${i}["${mm(g.failOutcome) || 'Does not qualify'}"]:::fail`);
     (Array.isArray(tree.tiebreakers) ? tree.tiebreakers : [])
       .filter(t => t.fromGate === i + 1)
@@ -127,7 +156,11 @@ function buildCalcFlowChart(flow: CalculationFlow): string {
     const condition = mm(st.decision.condition);
     const yes = mm(st.decision.yes);
     const no = mm(st.decision.no);
-    return condition && (yes || no) ? { condition, yes, no } : null;
+    // Wrap the condition (a diamond node) from the raw value so its label fits;
+    // yes/no are rectangles and keep the plain escaped text.
+    return condition && (yes || no)
+      ? { condition: mmWrap(st.decision.condition), yes, no }
+      : null;
   });
 
   const L: string[] = ['flowchart TD'];

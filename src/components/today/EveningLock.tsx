@@ -17,7 +17,10 @@ export default function EveningLock({ user, topic, session, settings, onLock, on
   const [cardCount, setCardCount] = useState(0);
   const [loading, setLoading] = useState<'cards' | 'lock' | null>(null);
   const [error, setError] = useState('');
-  const [locked, setLocked] = useState(session?.locked ?? false);
+  // Derive from session prop so navigating away and back reflects true DB state.
+  // Falls back to true once onLock() completes in the same mount (optimistic update).
+  const [lockedOptimistic, setLockedOptimistic] = useState(false);
+  const locked = (session?.locked ?? false) || lockedOptimistic;
 
   const questions = parseQuizQuestions(session?.quiz_questions);
   const answers = parseQuizAnswers(session?.quiz_answers);
@@ -59,7 +62,7 @@ export default function EveningLock({ user, topic, session, settings, onLock, on
     setLoading('lock');
     try {
       await onLock();
-      setLocked(true);
+      setLockedOptimistic(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to lock day');
     } finally {

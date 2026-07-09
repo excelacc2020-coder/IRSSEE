@@ -119,8 +119,14 @@ export async function getSession(userId: string, day: number): Promise<Session |
   }
 
   if (data) {
-    lsSet(cacheKey, data);
-    return data as Session;
+    const remote = data as Session;
+    // If localStorage has a newer write (e.g. fire-and-forget upsert hasn't reached
+    // Supabase yet), prefer the local version to avoid reverting MCQ/lock state.
+    if (cached?.updated_at && remote.updated_at && cached.updated_at > remote.updated_at) {
+      return cached;
+    }
+    lsSet(cacheKey, remote);
+    return remote;
   }
   return cached;
 }
@@ -209,9 +215,18 @@ export async function getAllSessions(userId: string): Promise<Session[]> {
     .order('day', { ascending: true });
 
   if (!error && data && data.length > 0) {
-    // Cache each session in localStorage while we have them
-    (data as Session[]).forEach(s => lsSet(`session_${userId}_${s.day}`, s));
-    return data as Session[];
+    // Reconcile each remote row with any newer local write (e.g. a lock that was
+    // just saved via a fire-and-forget upsert that hasn't reached Supabase yet)
+    // so fresh state isn't reverted, then refresh the cache with the winner.
+    return (data as Session[]).map(remote => {
+      const cacheKey = `session_${userId}_${remote.day}`;
+      const cached = lsGet<Session>(cacheKey);
+      if (cached?.updated_at && remote.updated_at && cached.updated_at > remote.updated_at) {
+        return cached;
+      }
+      lsSet(cacheKey, remote);
+      return remote;
+    });
   }
 
   // Fallback: scan localStorage for all sessions (works in dev/offline mode)
