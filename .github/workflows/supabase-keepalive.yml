@@ -1,0 +1,43 @@
+name: Supabase keep-alive (dev)
+
+# Supabase free-tier projects auto-pause after 7 days with no API activity.
+# This workflow sends a lightweight query to the dev project once a week so it
+# stays awake. Runs from the default branch (main) — scheduled workflows only
+# fire from there.
+
+on:
+  schedule:
+    # Friday 22:00 PKT (UTC+5) == Friday 17:00 UTC.
+    # cron is UTC. Adjust the hour if your timezone differs (e.g. UTC+0 -> '0 22 * * 5').
+    - cron: '0 17 * * 5'
+  workflow_dispatch: {}   # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping dev Supabase to prevent free-tier pause
+        env:
+          # Public Supabase anon key — safe to expose (Row Level Security guards
+          # the data). Same key already shipped in the public frontend bundle.
+          SUPABASE_URL: 'https://ogknjlwtlzdqcofnqehy.supabase.co'
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9na25qbHd0bHpkcWNvZm5xZWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NDgwOTIsImV4cCI6MjA5ODMyNDA5Mn0.voSyFD_ZOPUlXtxndJVXV3cjlG5CdIBzXXnWIsn98Bw'
+        run: |
+          set -euo pipefail
+          echo "Pinging $SUPABASE_URL ..."
+          # Query a real table so the request reaches Postgres (RLS returns an
+          # empty set for anon — that still counts as database activity).
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/sessions?select=day&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "REST status: $code"
+          case "$code" in
+            200|206|401)
+              echo "Supabase reachable — project kept awake."
+              ;;
+            *)
+              echo "Unexpected status $code — project may be paused or unreachable."
+              exit 1
+              ;;
+          esac
