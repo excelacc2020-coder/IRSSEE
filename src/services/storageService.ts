@@ -193,16 +193,27 @@ export async function upsertSession(
     payload.id = merged.id;
   }
 
-  void Promise.resolve(
-    supabase
+  // Best-effort but not silent: one retry on transient failure (e.g. a network
+  // blip), since a dropped write here means the day's true lock/quiz state
+  // never reaches Supabase and other devices — or a same-device sidebar refresh
+  // that only reads the remote table — will miss it.
+  async function syncToSupabase(attempt = 1): Promise<void> {
+    const { data, error } = await supabase
       .from('sessions')
       .upsert(payload, { onConflict: 'user_id,day' })
       .select()
-      .single()
-  ).then(({ data, error }) => { 
-    if (error) console.error('upsertSession DB error:', error, payload);
-    if (data) lsSet(cacheKey, data as Session); 
-  }).catch((err) => { console.error('upsertSession network error:', err); });
+      .single();
+    if (error) {
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 1000));
+        return syncToSupabase(attempt + 1);
+      }
+      console.error('upsertSession DB error (gave up after retry):', error, payload);
+      return;
+    }
+    if (data) lsSet(cacheKey, data as Session);
+  }
+  void syncToSupabase().catch((err) => { console.error('upsertSession network error:', err); });
 
   return merged;
 }
@@ -214,32 +225,30 @@ export async function getAllSessions(userId: string): Promise<Session[]> {
     .eq('user_id', userId)
     .order('day', { ascending: true });
 
-  if (!error && data && data.length > 0) {
-    // Reconcile each remote row with any newer local write (e.g. a lock that was
-    // just saved via a fire-and-forget upsert that hasn't reached Supabase yet)
-    // so fresh state isn't reverted, then refresh the cache with the winner.
-    return (data as Session[]).map(remote => {
-      const cacheKey = `session_${userId}_${remote.day}`;
-      const cached = lsGet<Session>(cacheKey);
-      if (cached?.updated_at && remote.updated_at && cached.updated_at > remote.updated_at) {
-        return cached;
-      }
-      lsSet(cacheKey, remote);
-      return remote;
-    });
+  const remoteByDay = new Map<number, Session>();
+  if (!error && data) {
+    (data as Session[]).forEach(s => remoteByDay.set(s.day, s));
   }
 
-  // Fallback: scan localStorage for all sessions (works in dev/offline mode)
-  const sessions: Session[] = [];
+  // Reconcile with localStorage per day: prefer whichever side is newer, and
+  // include local-only entries that have no matching remote row at all (e.g. a
+  // lock whose fire-and-forget upsert never reached Supabase) so a completed
+  // day never silently vanishes from the sidebar/dashboard.
+  const merged = new Map<number, Session>(remoteByDay);
   const prefix = `session_${userId}_`;
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith(prefix)) {
-      const s = lsGet<Session>(key);
-      if (s) sessions.push(s);
+    if (!key?.startsWith(prefix)) continue;
+    const cached = lsGet<Session>(key);
+    if (!cached) continue;
+    const remote = remoteByDay.get(cached.day);
+    if (!remote || (cached.updated_at && remote.updated_at && cached.updated_at > remote.updated_at)) {
+      merged.set(cached.day, cached);
     }
   }
-  return sessions.sort((a, b) => a.day - b.day);
+
+  merged.forEach(s => lsSet(`${prefix}${s.day}`, s));
+  return Array.from(merged.values()).sort((a, b) => a.day - b.day);
 }
 
 // ─── Errors ───────────────────────────────────────────────────────────────────
