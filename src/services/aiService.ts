@@ -71,10 +71,12 @@ export const PROVIDER_TIERS: Record<AIProvider, Record<TaskTier, string>> = {
   }
 })();
 
-// Classify a model ID into a tier by name pattern
+// Classify a model ID into a tier by name pattern.
+// 'mini' needs word boundaries: without them it matches inside 'gemini',
+// which files every Gemini model as light.
 function inferModelTier(id: string): TaskTier {
   const s = id.toLowerCase();
-  if (/flash|lite|mini|nano|micro|haiku|instant|\b8b\b|\b3b\b|\b1b\b/.test(s)) return 'light';
+  if (/flash|lite|\bmini\b|nano|micro|haiku|instant|\b8b\b|\b3b\b|\b1b\b/.test(s)) return 'light';
   if (/reason|think|\br1\b|\br2\b|qwq|deepthink/.test(s)) return 'reasoning';
   return 'heavy';
 }
@@ -131,19 +133,33 @@ async function fetchRawModels(provider: AIProvider, apiKey: string): Promise<str
   }
 }
 
+// Model IDs that should not be auto-selected for generating study material:
+// experimental or preview snapshots, and models built for another job entirely
+// (speech, embeddings, moderation, image). A live list routinely contains these
+// alongside the general-purpose models — e.g. deepseek-v4-flash-vision-exp sorts
+// ahead of deepseek-v4-flash and would otherwise win the light tier.
+const UNSTABLE_MODEL_PATTERN =
+  /-exp\b|experimental|preview|\bbeta\b|vision|audio|image|embed|rerank|tts|whisper|guard|moderation/;
+
 function computeTiersFromModels(
   provider: AIProvider,
   models: string[],
 ): Record<TaskTier, string> {
   const byTier: Record<TaskTier, string[]> = { heavy: [], reasoning: [], light: [] };
   for (const m of models) byTier[inferModelTier(m)].push(m);
-  for (const t of ['heavy', 'reasoning', 'light'] as TaskTier[]) byTier[t].sort().reverse();
+
+  // Newest-looking name first, preferring a stable general-purpose model. Falls
+  // back within the tier if a provider offers nothing else there.
+  const best = (tier: TaskTier): string | undefined => {
+    const ranked = [...byTier[tier]].sort().reverse();
+    return ranked.find(m => !UNSTABLE_MODEL_PATTERN.test(m.toLowerCase())) ?? ranked[0];
+  };
 
   const cur = PROVIDER_TIERS[provider];
   return {
-    heavy:     byTier.heavy[0]     ?? cur.heavy,
-    reasoning: byTier.reasoning[0] ?? byTier.heavy[0] ?? cur.heavy,
-    light:     byTier.light[0]     ?? byTier.heavy[0] ?? cur.heavy,
+    heavy:     best('heavy')     ?? cur.heavy,
+    reasoning: best('reasoning') ?? best('heavy') ?? cur.heavy,
+    light:     best('light')     ?? best('heavy') ?? cur.heavy,
   };
 }
 
