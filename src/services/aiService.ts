@@ -321,12 +321,12 @@ const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const DEEPSEEK_REASONING_HEADROOM = 4;      // total budget = answer budget x this
 const DEEPSEEK_MAX_OUTPUT_TOKENS = 384_000; // V4 hard ceiling for pro and flash
 
-// Thinking is OFF by default. V4 Pro's chain of thought adds minutes to a
-// single Morning Brief refresh, which is too slow for daily study use. The
-// widened budgets above stay in place regardless, so that if DeepSeek ever
-// ignores this flag the request still has room to finish instead of coming
-// back empty. Set to 'enabled' to trade speed for arithmetic checking.
-const DEEPSEEK_THINKING: 'enabled' | 'disabled' = 'disabled';
+// Thinking is ON. V4 Pro's chain of thought is what verifies arithmetic before
+// the model writes quiz options, which matters more here than speed — a refresh
+// takes noticeably longer with it on. The widened budgets above fund it; without
+// them the whole budget goes to reasoning and the answer comes back empty.
+// Set to 'disabled' to trade that checking for speed.
+const DEEPSEEK_THINKING: 'enabled' | 'disabled' = 'enabled';
 
 // Used only while DEEPSEEK_THINKING is 'enabled'. DeepSeek defaults
 // reasoning_effort to "high", which produces the longest chains; tie effort to
