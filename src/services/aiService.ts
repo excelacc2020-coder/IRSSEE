@@ -321,9 +321,17 @@ const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const DEEPSEEK_REASONING_HEADROOM = 4;      // total budget = answer budget x this
 const DEEPSEEK_MAX_OUTPUT_TOKENS = 384_000; // V4 hard ceiling for pro and flash
 
-// DeepSeek defaults reasoning_effort to "high", which can produce very long
-// chains. Tie effort to the task so a one-line classification does not pay for
-// deliberation it has no use for. Accepted values: "low" | "high" | "max".
+// Thinking is OFF by default. V4 Pro's chain of thought adds minutes to a
+// single Morning Brief refresh, which is too slow for daily study use. The
+// widened budgets above stay in place regardless, so that if DeepSeek ever
+// ignores this flag the request still has room to finish instead of coming
+// back empty. Set to 'enabled' to trade speed for arithmetic checking.
+const DEEPSEEK_THINKING: 'enabled' | 'disabled' = 'disabled';
+
+// Used only while DEEPSEEK_THINKING is 'enabled'. DeepSeek defaults
+// reasoning_effort to "high", which produces the longest chains; tie effort to
+// the task so a one-line classification does not pay for deliberation it has
+// no use for. Accepted values: "low" | "high" | "max".
 const DEEPSEEK_TASK_EFFORT: Record<TaskType, 'low' | 'high'> = {
   morningBrief:    'high',
   mindMap:         'high',
@@ -347,16 +355,18 @@ async function callDeepSeek(
   task: TaskType
 ): Promise<string> {
   const budget = deepseekBudget(task);
+  const thinkingOn = DEEPSEEK_THINKING === 'enabled';
+  const body: Record<string, unknown> = { thinking: { type: DEEPSEEK_THINKING } };
+  if (thinkingOn) body.reasoning_effort = DEEPSEEK_TASK_EFFORT[task];
+
   try {
-    return await callOpenAICompat(DEEPSEEK_BASE_URL, apiKey, model, prompt, budget, {
-      thinking: { type: 'enabled' },
-      reasoning_effort: DEEPSEEK_TASK_EFFORT[task],
-    });
+    return await callOpenAICompat(DEEPSEEK_BASE_URL, apiKey, model, prompt, budget, body);
   } catch (err) {
     // The chain of thought outran even the widened budget before producing an
     // answer. Retry once with thinking off so the whole budget goes to output,
-    // rather than surfacing a dead end to the user.
-    if (err instanceof EmptyContentError && err.finishReason === 'length') {
+    // rather than surfacing a dead end to the user. Pointless when thinking is
+    // already off: the same request would fail the same way.
+    if (thinkingOn && err instanceof EmptyContentError && err.finishReason === 'length') {
       return callOpenAICompat(DEEPSEEK_BASE_URL, apiKey, model, prompt, budget, {
         thinking: { type: 'disabled' },
       });
