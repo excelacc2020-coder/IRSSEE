@@ -38,9 +38,11 @@ export const PROVIDER_TIERS: Record<AIProvider, Record<TaskTier, string>> = {
     light:     'claude-haiku-4-5-20251001',
   },
   deepseek: {
+    // DeepSeek retired deepseek-chat / deepseek-reasoner in favour of the V4
+    // family. Every V4 model thinks by default; see DEEPSEEK_* budgets below.
     heavy:     'deepseek-v4-pro',    // best general-purpose model
-    reasoning: 'deepseek-reasoner',  // R1 chain-of-thought for MCQ arithmetic
-    light:     'deepseek-chat',      // maps to v4-flash on DeepSeek's backend
+    reasoning: 'deepseek-v4-pro',    // V4 has no separate reasoner; pro thinks natively
+    light:     'deepseek-v4-flash',  // cheaper V4 tier
   },
   groq: {
     heavy:     'llama-3.3-70b-versatile',
@@ -69,10 +71,12 @@ export const PROVIDER_TIERS: Record<AIProvider, Record<TaskTier, string>> = {
   }
 })();
 
-// Classify a model ID into a tier by name pattern
+// Classify a model ID into a tier by name pattern.
+// 'mini' needs word boundaries: without them it matches inside 'gemini',
+// which files every Gemini model as light.
 function inferModelTier(id: string): TaskTier {
   const s = id.toLowerCase();
-  if (/flash|lite|mini|nano|micro|haiku|instant|\b8b\b|\b3b\b|\b1b\b/.test(s)) return 'light';
+  if (/flash|lite|\bmini\b|nano|micro|haiku|instant|\b8b\b|\b3b\b|\b1b\b/.test(s)) return 'light';
   if (/reason|think|\br1\b|\br2\b|qwq|deepthink/.test(s)) return 'reasoning';
   return 'heavy';
 }
@@ -129,19 +133,33 @@ async function fetchRawModels(provider: AIProvider, apiKey: string): Promise<str
   }
 }
 
+// Model IDs that should not be auto-selected for generating study material:
+// experimental or preview snapshots, and models built for another job entirely
+// (speech, embeddings, moderation, image). A live list routinely contains these
+// alongside the general-purpose models — e.g. deepseek-v4-flash-vision-exp sorts
+// ahead of deepseek-v4-flash and would otherwise win the light tier.
+const UNSTABLE_MODEL_PATTERN =
+  /-exp\b|experimental|preview|\bbeta\b|vision|audio|image|embed|rerank|tts|whisper|guard|moderation/;
+
 function computeTiersFromModels(
   provider: AIProvider,
   models: string[],
 ): Record<TaskTier, string> {
   const byTier: Record<TaskTier, string[]> = { heavy: [], reasoning: [], light: [] };
   for (const m of models) byTier[inferModelTier(m)].push(m);
-  for (const t of ['heavy', 'reasoning', 'light'] as TaskTier[]) byTier[t].sort().reverse();
+
+  // Newest-looking name first, preferring a stable general-purpose model. Falls
+  // back within the tier if a provider offers nothing else there.
+  const best = (tier: TaskTier): string | undefined => {
+    const ranked = [...byTier[tier]].sort().reverse();
+    return ranked.find(m => !UNSTABLE_MODEL_PATTERN.test(m.toLowerCase())) ?? ranked[0];
+  };
 
   const cur = PROVIDER_TIERS[provider];
   return {
-    heavy:     byTier.heavy[0]     ?? cur.heavy,
-    reasoning: byTier.reasoning[0] ?? byTier.heavy[0] ?? cur.heavy,
-    light:     byTier.light[0]     ?? byTier.heavy[0] ?? cur.heavy,
+    heavy:     best('heavy')     ?? cur.heavy,
+    reasoning: best('reasoning') ?? best('heavy') ?? cur.heavy,
+    light:     best('light')     ?? best('heavy') ?? cur.heavy,
   };
 }
 
@@ -198,12 +216,25 @@ async function callClaude(apiKey: string, model: string, prompt: string, maxToke
   return data.content[0]?.text ?? '';
 }
 
+// Thrown when a provider returns a well-formed response with no answer text.
+// finishReason lets callers distinguish "ran out of budget" (length) from other
+// empty replies, so they can retry with different settings instead of failing.
+export class EmptyContentError extends Error {
+  readonly finishReason?: string;
+  constructor(message: string, finishReason?: string) {
+    super(message);
+    this.name = 'EmptyContentError';
+    this.finishReason = finishReason;
+  }
+}
+
 async function callOpenAICompat(
   baseUrl: string,
   apiKey: string,
   model: string,
   prompt: string,
-  maxTokens = 4096
+  maxTokens = 4096,
+  extraBody: Record<string, unknown> = {}
 ): Promise<string> {
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
@@ -215,6 +246,7 @@ async function callOpenAICompat(
       model,
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
+      ...extraBody,
     }),
   });
 
@@ -225,13 +257,19 @@ async function callOpenAICompat(
 
   const data = await response.json() as {
     choices: Array<{ message: { content: string | null }; finish_reason?: string }>;
+    usage?: { completion_tokens_details?: { reasoning_tokens?: number } };
   };
   const choice = data.choices?.[0];
   const content = choice?.message?.content ?? '';
   if (!content.trim()) {
     const reason = choice?.finish_reason ? ` (finish_reason: ${choice.finish_reason})` : '';
-    throw new Error(
-      `Model "${model}" returned empty content${reason}. It may have hit the token limit or spent the budget on reasoning — try a different model in Settings.`
+    const reasoningTokens = data.usage?.completion_tokens_details?.reasoning_tokens;
+    const spent = reasoningTokens
+      ? ` It used ${reasoningTokens} of its ${maxTokens}-token budget on reasoning before writing anything.`
+      : '';
+    throw new EmptyContentError(
+      `Model "${model}" returned empty content${reason}.${spent} Raise the token budget for this task, or pick a different model in Settings.`,
+      choice?.finish_reason
     );
   }
   return content;
@@ -272,6 +310,61 @@ const TASK_TOKEN_LIMITS: Record<TaskType, number> = {
   story:        24576,  // long narrative + 3 worked MCQs, plus reasoning headroom
 };
 
+// ─── DeepSeek V4 thinking budgets ────────────────────────────────────────────
+// Every V4 model (pro, flash) thinks by default, and the chain of thought is
+// billed inside max_tokens — reasoning_tokens sits within completion_tokens.
+// A budget sized for the answer alone therefore gets spent entirely on
+// thinking, and the API returns empty content with finish_reason "length".
+// Give the thinking its own room on top of the answer budget.
+// Docs: https://api-docs.deepseek.com/guides/thinking_mode/
+const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
+const DEEPSEEK_REASONING_HEADROOM = 4;      // total budget = answer budget x this
+const DEEPSEEK_MAX_OUTPUT_TOKENS = 384_000; // V4 hard ceiling for pro and flash
+
+// DeepSeek defaults reasoning_effort to "high", which can produce very long
+// chains. Tie effort to the task so a one-line classification does not pay for
+// deliberation it has no use for. Accepted values: "low" | "high" | "max".
+const DEEPSEEK_TASK_EFFORT: Record<TaskType, 'low' | 'high'> = {
+  morningBrief:    'high',
+  mindMap:         'high',
+  ankiCards:       'high',
+  story:           'high',
+  mcq:             'high', // must verify arithmetic before writing options
+  categorizeError: 'low',  // single short JSON object
+};
+
+function deepseekBudget(task: TaskType): number {
+  return Math.min(
+    TASK_TOKEN_LIMITS[task] * DEEPSEEK_REASONING_HEADROOM,
+    DEEPSEEK_MAX_OUTPUT_TOKENS
+  );
+}
+
+async function callDeepSeek(
+  apiKey: string,
+  model: string,
+  prompt: string,
+  task: TaskType
+): Promise<string> {
+  const budget = deepseekBudget(task);
+  try {
+    return await callOpenAICompat(DEEPSEEK_BASE_URL, apiKey, model, prompt, budget, {
+      thinking: { type: 'enabled' },
+      reasoning_effort: DEEPSEEK_TASK_EFFORT[task],
+    });
+  } catch (err) {
+    // The chain of thought outran even the widened budget before producing an
+    // answer. Retry once with thinking off so the whole budget goes to output,
+    // rather than surfacing a dead end to the user.
+    if (err instanceof EmptyContentError && err.finishReason === 'length') {
+      return callOpenAICompat(DEEPSEEK_BASE_URL, apiKey, model, prompt, budget, {
+        thinking: { type: 'disabled' },
+      });
+    }
+    throw err;
+  }
+}
+
 async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise<string> {
   const model = resolveModel(config, task);
   const maxTokens = TASK_TOKEN_LIMITS[task];
@@ -282,7 +375,9 @@ async function callAI(config: AIConfig, task: TaskType, prompt: string): Promise
     case 'groq':
       return callOpenAICompat('https://api.groq.com/openai/v1', config.apiKey, model, prompt, maxTokens);
     case 'deepseek':
-      return callOpenAICompat('https://api.deepseek.com/v1', config.apiKey, model, prompt, maxTokens);
+      // Budget is task-derived inside callDeepSeek: thinking needs headroom
+      // beyond the answer-sized maxTokens used by the other providers.
+      return callDeepSeek(config.apiKey, model, prompt, task);
     case 'zai':
       // Z.ai (Zhipu GLM) — OpenAI-compatible chat completions endpoint
       return callOpenAICompat('https://api.z.ai/api/paas/v4', config.apiKey, model, prompt, maxTokens);
