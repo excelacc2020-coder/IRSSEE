@@ -1,6 +1,24 @@
 import { supabase } from '../lib/supabase';
 import type { Session, ErrorRecord, AnkiCard, UserSettings, MCQQuestion, MCQSet, ErrorCategory, AIProvider, CardStatus } from '../types';
 
+// ─── Save failure signalling ─────────────────────────────────────────────────
+// A save can fail silently in two places: the browser refusing a localStorage
+// write once its quota is full, and the Supabase sync giving up after its
+// retry. Either one leaves the user looking at content that will not survive a
+// reload, so the UI has to be able to say so rather than letting it vanish.
+
+type SaveFailureListener = (message: string | null) => void;
+const saveFailureListeners = new Set<SaveFailureListener>();
+
+export function onSaveFailure(fn: SaveFailureListener): () => void {
+  saveFailureListeners.add(fn);
+  return () => { saveFailureListeners.delete(fn); };
+}
+
+function reportSave(message: string | null): void {
+  for (const fn of saveFailureListeners) fn(message);
+}
+
 // ─── localStorage helpers ───────────────────────────────────────────────────
 
 function lsGet<T>(key: string): T | null {
@@ -16,7 +34,10 @@ function lsSet<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // storage quota exceeded — ignore
+    // Almost always the storage quota. Silently dropping the write means the
+    // next read falls back to the older row in Supabase and the user's work
+    // disappears with no explanation, so say it out loud.
+    reportSave('This browser has run out of storage space, so your work could not be saved on this device.');
   }
 }
 
@@ -157,9 +178,14 @@ export async function upsertSession(
     quiz_passed: false,
     locked: false,
     created_at: existing?.created_at ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
     ...existing,
     ...updates,
+    // Must come after the spreads. Set before them, `...existing` copies the
+    // previous timestamp straight back over it, so a local write never looks
+    // newer than the row in Supabase. getSession then treats the cache as stale
+    // and overwrites this write with the older remote row — losing a brief the
+    // user just generated whenever the sync below does not land.
+    updated_at: new Date().toISOString(),
   };
 
   // Always write to localStorage immediately
@@ -209,11 +235,16 @@ export async function upsertSession(
         return syncToSupabase(attempt + 1);
       }
       console.error('upsertSession DB error (gave up after retry):', error, payload);
+      reportSave(`Saved on this device only — the cloud save failed: ${error.message}`);
       return;
     }
     if (data) lsSet(cacheKey, data as Session);
+    reportSave(null);
   }
-  void syncToSupabase().catch((err) => { console.error('upsertSession network error:', err); });
+  void syncToSupabase().catch((err) => {
+    console.error('upsertSession network error:', err);
+    reportSave('Saved on this device only — could not reach the server.');
+  });
 
   return merged;
 }
