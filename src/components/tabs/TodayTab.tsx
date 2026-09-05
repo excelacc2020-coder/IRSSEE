@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTopicByDay } from '../../constants/lessonPlan';
-import { getSession as fetchSession, upsertSession, upsertUserSettings } from '../../services/storageService';
+import { getSession as fetchSession, upsertSession, upsertUserSettings, onSaveFailure } from '../../services/storageService';
 import MorningBrief from '../today/MorningBrief';
 import VideoLinks from '../today/VideoLinks';
 import StudyNotes from '../today/StudyNotes';
@@ -43,6 +43,11 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
   const [session, setSession] = useState<Session | null>(null);
   const [activePhase, setActivePhase] = useState<TodayPhase>(0);
   const [loading, setLoading] = useState(true);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
+
+  // A failed save used to be console-only: the user saw freshly generated
+  // content, assumed it was stored, and lost it on the next load.
+  useEffect(() => onSaveFailure(setSaveWarning), []);
 
   const loadSession = useCallback(async () => {
     setLoading(true);
@@ -109,6 +114,19 @@ export default function TodayTab({ user, viewingDay, settings, onDataChange }: T
         </div>
         <h2 className="text-2xl font-bold text-th-text">{topic.topic}</h2>
       </div>
+
+      {saveWarning && (
+        <div
+          role="status"
+          className="mb-6 rounded-lg border border-yellow-600/50 bg-yellow-50 dark:bg-yellow-900/30 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200"
+        >
+          <p className="font-medium">Your last change may not be saved</p>
+          <p className="mt-1 text-xs opacity-90">{saveWarning}</p>
+          <p className="mt-1 text-xs opacity-90">
+            Copy anything you need before reloading this page or opening it on another device.
+          </p>
+        </div>
+      )}
 
       {/* Phase stepper */}
       <div className="flex gap-1 mb-8 overflow-x-auto pb-1">
