@@ -30,6 +30,15 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
 
   const reviewableCards = cards.filter(c => c.status !== 'mastered');
 
+  function shuffle(arr: AnkiCard[]): AnkiCard[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   return (
     <div>
       {/* Stats */}
@@ -47,7 +56,7 @@ export default function CardLibrary({ cards, onStartReview }: CardLibraryProps) 
       {/* Review Button */}
       {reviewableCards.length > 0 && (
         <button
-          onClick={() => onStartReview(reviewableCards)}
+          onClick={() => onStartReview(shuffle(reviewableCards))}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl mb-6 transition-colors"
         >
           Review {reviewableCards.length} Card{reviewableCards.length !== 1 ? 's' : ''}
